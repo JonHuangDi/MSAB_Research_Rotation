@@ -1,0 +1,1422 @@
+---
+title: "Spatial Model"
+author: "Jonathan"
+date: "2023-11-04"
+output: html_document
+---
+library setup
+```{r}
+library(spdep)
+library(rstan)
+library(ggplot2)
+library(tmap)
+rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())
+```
+
+```{r}
+load('ireland.RData')
+ireland.nb <- poly2nb(ireland,snap=0.0002)
+```
+
+```{r}
+plot(ireland)
+plot(ireland.nb,coords=coordinates(ireland),add=TRUE,pch=16,col='darkred')
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+SpatialExperiment 
+
+```{r}
+library(SingleCellExperiment)
+library(SummarizedExperiment)
+library(MatrixGenerics)
+library(matrixStats)
+library(SpatialExperiment)
+library(STexampleData)
+library(ggspavis)
+library(scuttle)
+library(scater)
+library(scran)
+library(pheatmap)
+library(nnSVG)
+library(igraph)
+library(BiocFileCache)
+library(rtracklayer)
+library(lobstr)
+library(spatialLIBD)
+```
+
+5.3 Load Data
+```{r}
+spe <- Visium_humanDLPFC()
+spe
+dim(spe)
+assayNames(spe)
+head(rowData(spe))
+head(colData(spe))
+head(spatialCoords(spe))
+imgData(spe)
+dim(rowData(spe))
+```
+
+5.5 Build Object
+```{r}
+# create data
+n_genes <- 200
+n_spots <- 100
+
+counts <- matrix(0, nrow = n_genes, ncol = n_spots)
+
+row_data <- DataFrame(
+  gene_name = paste0("gene", sprintf("%03d", seq_len(n_genes))) 
+  #springf function can format how your data looks
+  #seq_len basically creates a list of number from 1 to x
+  #%03d looks look it made the amount digits up to three
+)
+
+col_data <- DataFrame(
+  sample_id = rep("sample01", n_spots)
+)
+
+spatial_coords <- matrix(0, nrow = n_spots, ncol = 2)
+colnames(spatial_coords) <- c("x", "y")
+
+# create SpatialExperiment object
+spe <- SpatialExperiment(
+  assays = list(counts = counts), 
+  colData = col_data, 
+  rowData = row_data, 
+  spatialCoords = spatial_coords
+)
+```
+
+Quality Control
+6.3 Plot data
+```{r}
+spe <- Visium_humanDLPFC()
+# plot spatial coordinates (spots)
+plotSpots(spe)
+```
+
+
+6.4 Calculate QC metric
+```{r}
+spe <- Visium_humanDLPFC()
+
+# subset to keep only spots over tissue
+spe <- spe[, colData(spe)$in_tissue == 1]
+dim(spe)
+
+# identify mitochondrial genes
+is_mito <- grepl("(^MT-)|(^mt-)", rowData(spe)$gene_name)
+table(is_mito)
+
+rowData(spe)$gene_name[is_mito]
+
+# calculate per-spot QC metrics and store in colData
+spe <- addPerCellQC(spe, subsets = list(mito = is_mito))
+head(colData(spe))
+```
+
+6.5.1 Library Size
+```{r}
+# histogram of library sizes
+hist(colData(spe)$sum, breaks = 20)
+
+# plot library size vs. number of cells per spot
+plotQC(spe, type = "scatter", 
+       metric_x = "cell_count", metric_y = "sum", 
+       threshold_y = 600)
+
+# select QC threshold for library size
+qc_lib_size <- colData(spe)$sum < 600
+table(qc_lib_size)
+
+colData(spe)$qc_lib_size <- qc_lib_size
+
+# check spatial pattern of discarded spots
+plotQC(spe, type = "spots", 
+       discard = "qc_lib_size")
+
+#this is what happens when you set the threshhold too high
+# check spatial pattern of discarded spots if threshold is too high
+qc_lib_size_2000 <- colData(spe)$sum < 2000
+colData(spe)$qc_lib_size_2000 <- qc_lib_size_2000
+plotQC(spe, type = "spots", 
+       discard = "qc_lib_size_2000")
+
+# plot ground truth (manually annotated) layers
+plotSpots(spe, annotate = "ground_truth", 
+          palette = "libd_layer_colors")
+```
+
+6.5.2 Number of expressed features
+```{r}
+# histogram of numbers of expressed genes
+hist(colData(spe)$detected, breaks = 20)
+
+# plot number of expressed genes vs. number of cells per spot
+plotQC(spe, type = "scatter", 
+       metric_x = "cell_count", metric_y = "detected", 
+       threshold_y = 400)
+
+# select QC threshold for number of expressed genes
+qc_detected <- colData(spe)$detected < 400
+table(qc_detected)
+
+colData(spe)$qc_detected <- qc_detected
+
+# check spatial pattern of discarded spots
+plotQC(spe, type = "spots", 
+       discard = "qc_detected")
+
+# check spatial pattern of discarded spots if threshold is too high
+qc_detected_1000 <- colData(spe)$detected < 1000
+colData(spe)$qc_detected_1000 <- qc_detected_1000
+plotQC(spe, type = "spots", 
+       discard = "qc_detected_1000")
+```
+
+
+6.5.3 Proportion of mitochondrial reads
+```{r}
+# histogram of mitochondrial read proportions
+hist(colData(spe)$subsets_mito_percent, breaks = 20)
+
+# plot mitochondrial read proportion vs. number of cells per spot
+plotQC(spe, type = "scatter", 
+       metric_x = "cell_count", metric_y = "subsets_mito_percent", 
+       threshold_y = 28)
+
+# select QC threshold for mitochondrial read proportion
+qc_mito <- colData(spe)$subsets_mito_percent > 28
+table(qc_mito)
+
+colData(spe)$qc_mito <- qc_mito
+
+# check spatial pattern of discarded spots
+plotQC(spe, type = "spots", 
+       discard = "qc_mito")
+
+# check spatial pattern of discarded spots if threshold is too high
+qc_mito_25 <- colData(spe)$subsets_mito_percent > 25
+colData(spe)$qc_mito_25 <- qc_mito_25
+plotQC(spe, type = "spots", 
+       discard = "qc_mito_25")
+```
+
+
+6.5.4 Number of cells per spot
+```{r}
+# histogram of cell counts
+hist(colData(spe)$cell_count, breaks = 20)
+
+# distribution of cells per spot
+tbl_cells_per_spot <- table(colData(spe)$cell_count)
+
+# plot number of expressed genes vs. number of cells per spot
+plotQC(spe, type = "scatter", 
+       metric_x = "cell_count", metric_y = "detected", 
+       threshold_x = 10)
+
+# select QC threshold for number of cells per spot
+qc_cell_count <- colData(spe)$cell_count > 10
+table(qc_cell_count)
+
+colData(spe)$qc_cell_count <- qc_cell_count
+
+# check spatial pattern of discarded spots
+plotQC(spe, type = "spots", 
+       discard = "qc_cell_count")
+```
+
+6.5.5 Remove low-quality spots
+```{r}
+# number of discarded spots for each metric
+apply(cbind(qc_lib_size, qc_detected, qc_mito, qc_cell_count), 2, sum)
+
+# combined set of discarded spots
+discard <- qc_lib_size | qc_detected | qc_mito | qc_cell_count
+table(discard)
+
+# store in object
+colData(spe)$discard <- discard
+
+# check spatial pattern of combined set of discarded spots
+plotQC(spe, type = "spots", 
+       discard = "discard")
+
+# remove combined set of low-quality spots
+spe <- spe[, !colData(spe)$discard]
+dim(spe)
+```
+
+
+6.6 Zero-cell and single-cell spots
+```{r}
+# distribution of cells per spot
+tbl_cells_per_spot[1:13]
+
+# as proportions
+prop_cells_per_spot <- round(tbl_cells_per_spot / sum(tbl_cells_per_spot), 2)
+prop_cells_per_spot[1:13]
+```
+
+
+7.2 Normalization (Previous steps)
+```{r}
+# LOAD DATA
+spe <- Visium_humanDLPFC()
+
+# QUALITY CONTROL (QC)
+
+# subset to keep only spots over tissue
+spe <- spe[, colData(spe)$in_tissue == 1]
+# identify mitochondrial genes
+is_mito <- grepl("(^MT-)|(^mt-)", rowData(spe)$gene_name)
+# calculate per-spot QC metrics
+spe <- addPerCellQC(spe, subsets = list(mito = is_mito))
+# select QC thresholds
+qc_lib_size <- colData(spe)$sum < 600
+qc_detected <- colData(spe)$detected < 400
+qc_mito <- colData(spe)$subsets_mito_percent > 28
+qc_cell_count <- colData(spe)$cell_count > 10
+# combined set of discarded spots
+discard <- qc_lib_size | qc_detected | qc_mito | qc_cell_count
+colData(spe)$discard <- discard
+# filter low-quality spots
+spe <- spe[, !colData(spe)$discard]
+```
+
+7.3 Logcounts
+```{r}
+# calculate library size factors
+spe <- computeLibraryFactors(spe)
+
+summary(sizeFactors(spe))
+
+hist(sizeFactors(spe), breaks = 20)
+
+# calculate logcounts and store in object
+spe <- logNormCounts(spe)
+
+# check
+assayNames(spe)
+
+dim(counts(spe))
+
+dim(logcounts(spe))
+```
+
+8.2 Previous Steps
+```{r}
+# LOAD DATA
+spe <- Visium_humanDLPFC()
+
+# QUALITY CONTROL (QC)
+
+# subset to keep only spots over tissue
+spe <- spe[, colData(spe)$in_tissue == 1]
+# identify mitochondrial genes
+is_mito <- grepl("(^MT-)|(^mt-)", rowData(spe)$gene_name)
+# calculate per-spot QC metrics
+spe <- addPerCellQC(spe, subsets = list(mito = is_mito))
+# select QC thresholds
+qc_lib_size <- colData(spe)$sum < 600
+qc_detected <- colData(spe)$detected < 400
+qc_mito <- colData(spe)$subsets_mito_percent > 28
+qc_cell_count <- colData(spe)$cell_count > 10
+# combined set of discarded spots
+discard <- qc_lib_size | qc_detected | qc_mito | qc_cell_count
+colData(spe)$discard <- discard
+# filter low-quality spots
+spe <- spe[, !colData(spe)$discard]
+
+# NORMALIZATION
+
+# calculate logcounts using library size factors
+spe <- logNormCounts(spe)
+```
+
+
+8.3 Highly variable genes (HVGs)
+```{r}
+# remove mitochondrial genes
+spe <- spe[!is_mito, ]
+dim(spe)
+
+# fit mean-variance relationship
+dec <- modelGeneVar(spe)
+
+# visualize mean-variance relationship
+fit <- metadata(dec)
+plot(fit$mean, fit$var, 
+     xlab = "mean of log-expression", ylab = "variance of log-expression")
+curve(fit$trend(x), col = "dodgerblue", add = TRUE, lwd = 2)
+
+# select top HVGs
+top_hvgs <- getTopHVGs(dec, prop = 0.1)
+length(top_hvgs)
+```
+
+
+9.2 Previous Steps
+```{r}
+# LOAD DATA
+spe <- Visium_humanDLPFC()
+
+# QUALITY CONTROL (QC)
+
+# subset to keep only spots over tissue
+spe <- spe[, colData(spe)$in_tissue == 1]
+# identify mitochondrial genes
+is_mito <- grepl("(^MT-)|(^mt-)", rowData(spe)$gene_name)
+# calculate per-spot QC metrics
+spe <- addPerCellQC(spe, subsets = list(mito = is_mito))
+# select QC thresholds
+qc_lib_size <- colData(spe)$sum < 600
+qc_detected <- colData(spe)$detected < 400
+qc_mito <- colData(spe)$subsets_mito_percent > 28
+qc_cell_count <- colData(spe)$cell_count > 10
+# combined set of discarded spots
+discard <- qc_lib_size | qc_detected | qc_mito | qc_cell_count
+colData(spe)$discard <- discard
+# filter low-quality spots
+spe <- spe[, !colData(spe)$discard]
+
+# NORMALIZATION
+
+# calculate logcounts using library size factors
+spe <- logNormCounts(spe)
+
+# FEATURE SELECTION
+
+# remove mitochondrial genes
+spe <- spe[!is_mito, ]
+# fit mean-variance relationship
+dec <- modelGeneVar(spe)
+# select top HVGs
+top_hvgs <- getTopHVGs(dec, prop = 0.1)
+```
+
+
+9.3 Principal component analysis (PCA)
+```{r}
+# compute PCA
+set.seed(123)
+spe <- runPCA(spe, subset_row = top_hvgs)
+
+reducedDimNames(spe)
+
+dim(reducedDim(spe, "PCA"))
+```
+
+
+9.4 Uniform Manifold Approximation and Projection (UMAP)
+```{r}
+# compute UMAP on top 50 PCs
+set.seed(123)
+spe <- runUMAP(spe, dimred = "PCA")
+
+reducedDimNames(spe)
+
+dim(reducedDim(spe, "UMAP"))
+
+# update column names for easier plotting
+colnames(reducedDim(spe, "UMAP")) <- paste0("UMAP", 1:2)
+```
+
+9.5 Visualizations
+```{r}
+# plot top 2 PCA dimensions
+plotDimRed(spe, type = "PCA")
+
+# plot top 2 UMAP dimensions
+plotDimRed(spe, type = "UMAP")
+```
+
+
+10.2 Previous Steps
+```{r}
+# LOAD DATA
+
+spe <- Visium_humanDLPFC()
+
+# QUALITY CONTROL (QC)
+
+# subset to keep only spots over tissue
+spe <- spe[, colData(spe)$in_tissue == 1]
+# identify mitochondrial genes
+is_mito <- grepl("(^MT-)|(^mt-)", rowData(spe)$gene_name)
+# calculate per-spot QC metrics
+spe <- addPerCellQC(spe, subsets = list(mito = is_mito))
+# select QC thresholds
+qc_lib_size <- colData(spe)$sum < 600
+qc_detected <- colData(spe)$detected < 400
+qc_mito <- colData(spe)$subsets_mito_percent > 28
+qc_cell_count <- colData(spe)$cell_count > 10
+# combined set of discarded spots
+discard <- qc_lib_size | qc_detected | qc_mito | qc_cell_count
+colData(spe)$discard <- discard
+# filter low-quality spots
+spe <- spe[, !colData(spe)$discard]
+
+# NORMALIZATION
+
+# calculate logcounts using library size factors
+spe <- logNormCounts(spe)
+
+# FEATURE SELECTION
+
+# remove mitochondrial genes
+spe <- spe[!is_mito, ]
+# fit mean-variance relationship
+dec <- modelGeneVar(spe)
+# select top HVGs
+top_hvgs <- getTopHVGs(dec, prop = 0.1)
+
+# DIMENSIONALITY REDUCTION
+
+# compute PCA
+set.seed(123)
+spe <- runPCA(spe, subset_row = top_hvgs)
+# compute UMAP on top 50 PCs
+set.seed(123)
+spe <- runUMAP(spe, dimred = "PCA")
+# update column names
+colnames(reducedDim(spe, "UMAP")) <- paste0("UMAP", 1:2)
+```
+
+
+10.3 Non-spatial clustering on HVGs
+```{r}
+# graph-based clustering
+set.seed(123)
+k <- 10
+g <- buildSNNGraph(spe, k = k, use.dimred = "PCA")
+g_walk <- igraph::cluster_walktrap(g)
+clus <- g_walk$membership
+table(clus)
+
+# store cluster labels in column 'label' in colData
+colLabels(spe) <- factor(clus)
+
+# plot clusters in spatial x-y coordinates
+plotSpots(spe, annotate = "label", 
+          palette = "libd_layer_colors")
+
+# plot ground truth labels in spatial coordinates
+plotSpots(spe, annotate = "ground_truth", 
+          palette = "libd_layer_colors")
+
+# plot clusters in PCA reduced dimensions
+plotDimRed(spe, type = "PCA", 
+           annotate = "label", palette = "libd_layer_colors")
+
+# plot clusters in UMAP reduced dimensions
+plotDimRed(spe, type = "UMAP", 
+           annotate = "label", palette = "libd_layer_colors")
+```
+
+
+11.2 Previous steps
+```{r}
+# LOAD DATA
+
+spe <- Visium_humanDLPFC()
+```
+
+
+11.3 Number of cells per spot
+```{r}
+# plot number of cells per spot
+plotQC(spe, type = "bar", metric_x = "cell_count") + 
+  xlab("number of cells") + 
+  ggtitle("Number of cells per spot")
+```
+
+
+13.2 Previous Steps
+```{r}
+# LOAD DATA
+
+spe <- Visium_humanDLPFC()
+
+# QUALITY CONTROL (QC)
+
+# subset to keep only spots over tissue
+spe <- spe[, colData(spe)$in_tissue == 1]
+# identify mitochondrial genes
+is_mito <- grepl("(^MT-)|(^mt-)", rowData(spe)$gene_name)
+# calculate per-spot QC metrics
+spe <- addPerCellQC(spe, subsets = list(mito = is_mito))
+# select QC thresholds
+qc_lib_size <- colData(spe)$sum < 600
+qc_detected <- colData(spe)$detected < 400
+qc_mito <- colData(spe)$subsets_mito_percent > 28
+qc_cell_count <- colData(spe)$cell_count > 10
+# combined set of discarded spots
+discard <- qc_lib_size | qc_detected | qc_mito | qc_cell_count
+colData(spe)$discard <- discard
+# filter low-quality spots
+spe <- spe[, !colData(spe)$discard]
+
+# NORMALIZATION
+
+# calculate logcounts using library size factors
+spe <- logNormCounts(spe)
+
+# FEATURE SELECTION
+
+# remove mitochondrial genes
+spe <- spe[!is_mito, ]
+# fit mean-variance relationship
+dec <- modelGeneVar(spe)
+# select top HVGs
+top_hvgs <- getTopHVGs(dec, prop = 0.1)
+
+# DIMENSIONALITY REDUCTION
+
+# compute PCA
+set.seed(123)
+spe <- runPCA(spe, subset_row = top_hvgs)
+# compute UMAP on top 50 PCs
+set.seed(123)
+spe <- runUMAP(spe, dimred = "PCA")
+# update column names
+colnames(reducedDim(spe, "UMAP")) <- paste0("UMAP", 1:2)
+
+# CLUSTERING
+
+# graph-based clustering
+set.seed(123)
+k <- 10
+g <- buildSNNGraph(spe, k = k, use.dimred = "PCA")
+g_walk <- igraph::cluster_walktrap(g)
+clus <- g_walk$membership
+colLabels(spe) <- factor(clus)
+```
+
+
+13.3 Differential expression testing
+```{r}
+# set gene names as row names for easier plotting
+rownames(spe) <- rowData(spe)$gene_name
+
+# test for marker genes
+markers <- findMarkers(spe, test = "binom", direction = "up")
+
+# returns a list with one DataFrame per cluster
+markers
+
+# plot log-fold changes for one cluster over all other clusters
+# selecting cluster 1
+interesting <- markers[[1]]
+best_set <- interesting[interesting$Top <= 5, ]
+logFCs <- getMarkerEffects(best_set)
+
+pheatmap(logFCs, breaks = seq(-5, 5, length.out = 101))
+
+# plot log-transformed normalized expression of top genes for one cluster
+top_genes <- head(rownames(interesting))
+
+plotExpression(spe, x = "label", features = top_genes)
+```
+
+16 Human DLPFC workflow
+16.3 Load data
+```{r}
+# load object
+spe <- Visium_humanDLPFC()
+spe
+```
+
+
+16.4 Plot data
+```{r}
+# plot spatial coordinates (spots)
+plotSpots(spe)
+```
+
+
+16.5 Quality control (QC)
+```{r}
+# subset to keep only spots over tissue
+spe <- spe[, colData(spe)$in_tissue == 1]
+dim(spe)
+
+# identify mitochondrial genes
+is_mito <- grepl("(^MT-)|(^mt-)", rowData(spe)$gene_name)
+table(is_mito)
+
+rowData(spe)$gene_name[is_mito]
+
+# calculate per-spot QC metrics and store in colData
+spe <- addPerCellQC(spe, subsets = list(mito = is_mito))
+head(colData(spe), 3)
+
+# histograms of QC metrics
+par(mfrow = c(1, 4))
+hist(colData(spe)$sum, xlab = "sum", main = "UMIs per spot")
+hist(colData(spe)$detected, xlab = "detected", main = "Genes per spot")
+hist(colData(spe)$subsets_mito_percent, xlab = "percent mitochondrial", main = "Percent mito UMIs")
+hist(colData(spe)$cell_count, xlab = "number of cells", main = "No. cells per spot")
+
+par(mfrow = c(1, 1))
+
+# select QC thresholds
+qc_lib_size <- colData(spe)$sum < 600
+qc_detected <- colData(spe)$detected < 400
+qc_mito <- colData(spe)$subsets_mito_percent > 28
+qc_cell_count <- colData(spe)$cell_count > 10
+
+# number of discarded spots for each metric
+apply(cbind(qc_lib_size, qc_detected, qc_mito, qc_cell_count), 2, sum)
+
+# combined set of discarded spots
+discard <- qc_lib_size | qc_detected | qc_mito | qc_cell_count
+table(discard)
+
+# store in object
+colData(spe)$discard <- discard
+
+# check spatial pattern of discarded spots
+plotQC(spe, type = "spots", discard = "discard")
+
+# filter low-quality spots
+spe <- spe[, !colData(spe)$discard]
+dim(spe)
+```
+
+
+16.6 Normalization
+```{r}
+# calculate library size factors
+spe <- computeLibraryFactors(spe)
+
+summary(sizeFactors(spe))
+
+hist(sizeFactors(spe), breaks = 20)
+# calculate logcounts and store in object
+spe <- logNormCounts(spe)
+
+assayNames(spe)
+```
+
+
+16.7 Feature selection
+```{r}
+# remove mitochondrial genes
+spe <- spe[!is_mito, ]
+dim(spe)
+
+# fit mean-variance relationship
+dec <- modelGeneVar(spe)
+
+# visualize mean-variance relationship
+fit <- metadata(dec)
+plot(fit$mean, fit$var, 
+     xlab = "mean of log-expression", ylab = "variance of log-expression")
+curve(fit$trend(x), col = "dodgerblue", add = TRUE, lwd = 2)
+
+# select top HVGs
+top_hvgs <- getTopHVGs(dec, prop = 0.1)
+length(top_hvgs)
+```
+
+
+16.8 Spatially-aware feature selection
+```{r}
+# subsample spots
+n <- 100
+set.seed(123)
+ix <- sample(seq_len(n), n)
+
+spe_nnSVG <- spe[, ix]
+
+# filter low-expressed and mitochondrial genes
+# using very stringent filtering parameters for faster runtime in this example
+# note: for a full analysis, use alternative filtering parameters (e.g. defaults)
+spe_nnSVG <- filter_genes(
+  spe_nnSVG, filter_genes_ncounts = 10, filter_genes_pcspots = 3
+)
+
+# re-calculate logcounts after filtering
+# using library size factors
+spe_nnSVG <- logNormCounts(spe_nnSVG)
+
+# run nnSVG
+# using a single core for compatibility on build system
+# note: for a full analysis, use multiple cores
+set.seed(123)
+spe_nnSVG <- nnSVG(spe_nnSVG, n_threads = 1)
+
+# investigate results
+
+# show results
+head(rowData(spe_nnSVG), 3)
+
+# number of significant SVGs
+table(rowData(spe_nnSVG)$padj <= 0.05)
+
+# show results for top n SVGs
+rowData(spe_nnSVG)[order(rowData(spe_nnSVG)$rank)[1:6], ]
+
+# identify top-ranked SVG
+rowData(spe_nnSVG)$gene_name[which(rowData(spe_nnSVG)$rank == 1)]
+```
+
+
+16.9 Dimensionality reduction
+```{r}
+# compute PCA
+set.seed(123)
+spe <- runPCA(spe, subset_row = top_hvgs)
+
+reducedDimNames(spe)
+
+dim(reducedDim(spe, "PCA"))
+
+# compute UMAP on top 50 PCs
+set.seed(123)
+spe <- runUMAP(spe, dimred = "PCA")
+
+reducedDimNames(spe)
+
+# compute UMAP on top 50 PCs
+set.seed(123)
+spe <- runUMAP(spe, dimred = "PCA")
+
+reducedDimNames(spe)
+
+dim(reducedDim(spe, "UMAP"))
+
+# update column names for easier plotting
+colnames(reducedDim(spe, "UMAP")) <- paste0("UMAP", 1:2)
+```
+
+
+16.10 Clustering
+```{r}
+# graph-based clustering
+set.seed(123)
+k <- 10
+g <- buildSNNGraph(spe, k = k, use.dimred = "PCA")
+g_walk <- igraph::cluster_walktrap(g)
+clus <- g_walk$membership
+table(clus)
+
+# store cluster labels in column 'label' in colData
+colLabels(spe) <- factor(clus)
+
+# plot clusters in spatial x-y coordinates
+plotSpots(spe, annotate = "label", 
+          palette = "libd_layer_colors")
+
+# plot ground truth labels in spatial coordinates
+plotSpots(spe, annotate = "ground_truth", 
+          palette = "libd_layer_colors")
+
+# plot clusters in UMAP reduced dimensions
+plotDimRed(spe, type = "UMAP", 
+           annotate = "label", palette = "libd_layer_colors")
+```
+
+
+
+16.11 Differential expression
+```{r}
+# set gene names as row names for easier plotting
+rownames(spe) <- rowData(spe)$gene_name
+
+# test for marker genes
+markers <- findMarkers(spe, test = "binom", direction = "up")
+
+# returns a list with one DataFrame per cluster
+markers
+
+# plot log-fold changes for one cluster over all other clusters
+# selecting cluster 1
+interesting <- markers[[1]]
+best_set <- interesting[interesting$Top <= 5, ]
+logFCs <- getMarkerEffects(best_set)
+
+pheatmap(logFCs, breaks = seq(-5, 5, length.out = 101))
+
+# plot log-transformed normalized expression of top genes for one cluster
+top_genes <- head(rownames(interesting))
+
+plotExpression(spe, x = "label", features = top_genes)
+```
+
+
+17 Mouse coronal workflow
+17.3 Load data
+```{r}
+# load object
+spe <- Visium_mouseCoronal()
+spe
+```
+
+
+17.4 Plot Data
+```{r}
+# plot spatial coordinates (spots)
+plotSpots(spe)
+```
+
+17.5 Quality control (QC)
+```{r}
+# subset to keep only spots over tissue
+spe <- spe[, colData(spe)$in_tissue == 1]
+dim(spe)
+
+# identify mitochondrial genes
+is_mito <- grepl("(^MT-)|(^mt-)", rowData(spe)$gene_name)
+table(is_mito)
+
+rowData(spe)$gene_name[is_mito]
+
+# calculate per-spot QC metrics and store in colData
+spe <- addPerCellQC(spe, subsets = list(mito = is_mito))
+head(colData(spe), 3)
+
+# histograms of QC metrics
+par(mfrow = c(1, 3))
+hist(colData(spe)$sum, xlab = "sum", main = "UMIs per spot")
+hist(colData(spe)$detected, xlab = "detected", main = "Genes per spot")
+hist(colData(spe)$subsets_mito_percent, xlab = "percent mitochondrial", main = "Percent mito UMIs")
+
+par(mfrow = c(1, 1))
+
+# select QC thresholds
+qc_lib_size <- colData(spe)$sum < 5000
+qc_detected <- colData(spe)$detected < 1000
+qc_mito <- colData(spe)$subsets_mito_percent > 30
+
+# number of discarded spots for each QC metric
+apply(cbind(qc_lib_size, qc_detected, qc_mito), 2, sum)
+
+# combined set of discarded spots
+discard <- qc_lib_size | qc_detected | qc_mito
+table(discard)
+
+# store in object
+colData(spe)$discard <- discard
+
+# check spatial pattern of discarded spots
+plotQC(spe, type = "spots", discard = "discard")
+
+# filter low-quality spots
+spe <- spe[, !colData(spe)$discard]
+dim(spe)
+```
+
+
+17.6 Normalization
+```{r}
+# calculate library size factors
+spe <- computeLibraryFactors(spe)
+
+summary(sizeFactors(spe))
+
+hist(log10(sizeFactors(spe)), xlab = "log10 (size factors)", main = "Size factors")
+
+# calculate logcounts and store in object
+spe <- logNormCounts(spe)
+
+assayNames(spe)
+```
+
+
+17.7 Feature selection
+```{r}
+# remove mitochondrial genes
+spe <- spe[!is_mito, ]
+dim(spe)
+
+# fit mean-variance relationship
+dec <- modelGeneVar(spe)
+
+# visualize mean-variance relationship
+fit <- metadata(dec)
+plot(fit$mean, fit$var, 
+     xlab = "mean of log-expression", ylab = "variance of log-expression")
+curve(fit$trend(x), col = "dodgerblue", add = TRUE, lwd = 2)
+
+# select top HVGs
+top_hvgs <- getTopHVGs(dec, prop = 0.1)
+length(top_hvgs)
+
+# identify outlier genes
+rev(sort(fit$mean))[1:3]
+
+outlier_ids <- names(rev(sort(fit$mean))[1:3])
+
+rowData(spe)[outlier_ids, ]
+```
+
+
+17.8 Spatially-aware feature selection
+```{r}
+# subsample spots
+n <- 100
+set.seed(123)
+ix <- sample(seq_len(n), n)
+
+spe_nnSVG <- spe[, ix]
+
+# filter low-expressed and mitochondrial genes
+# using very stringent filtering parameters for faster runtime in this example
+# note: for a full analysis, use alternative filtering parameters (e.g. defaults)
+spe_nnSVG <- filter_genes(
+  spe_nnSVG, filter_genes_ncounts = 50, filter_genes_pcspots = 5
+)
+
+# re-calculate logcounts after filtering
+# using library size factors
+spe_nnSVG <- logNormCounts(spe_nnSVG)
+
+# run nnSVG
+# using a single core for compatibility on build system
+# note: for a full analysis, use multiple cores
+set.seed(123)
+spe_nnSVG <- nnSVG(spe_nnSVG, n_threads = 1)
+
+# investigate results
+
+# show results
+head(rowData(spe_nnSVG), 3)
+
+# number of significant SVGs
+table(rowData(spe_nnSVG)$padj <= 0.05)
+
+# show results for top n SVGs
+rowData(spe_nnSVG)[order(rowData(spe_nnSVG)$rank)[1:6], ]
+
+# identify top-ranked SVG
+rowData(spe_nnSVG)$gene_name[which(rowData(spe_nnSVG)$rank == 1)]
+```
+
+
+17.9 Dimensionality reduction
+```{r}
+# compute PCA
+set.seed(123)
+spe <- runPCA(spe, subset_row = top_hvgs)
+
+reducedDimNames(spe)
+
+dim(reducedDim(spe, "PCA"))
+
+# compute UMAP on top 50 PCs
+set.seed(123)
+spe <- runUMAP(spe, dimred = "PCA")
+
+reducedDimNames(spe)
+
+dim(reducedDim(spe, "UMAP"))
+
+# update column names for easier plotting
+colnames(reducedDim(spe, "UMAP")) <- paste0("UMAP", 1:2)
+```
+
+
+17.10 Clustering
+```{r}
+# graph-based clustering
+set.seed(123)
+k <- 10
+g <- buildSNNGraph(spe, k = k, use.dimred = "PCA")
+g_walk <- igraph::cluster_walktrap(g)
+clus <- g_walk$membership
+table(clus)
+
+# store cluster labels in column 'label' in colData
+colLabels(spe) <- factor(clus)
+
+# define custom color palette
+colors <- unname(palette.colors(palette = "Polychrome 36"))
+
+# plot clusters in spatial x-y coordinates
+plotSpots(spe, annotate = "label", 
+          palette = colors)
+
+# plot clusters in UMAP dimensions
+plotDimRed(spe, type = "UMAP", 
+           annotate = "label", palette = colors)
+```
+
+
+17.11 Differential expression
+```{r}
+# set gene names as row names for easier plotting
+rownames(spe) <- rowData(spe)$gene_name
+
+# test for marker genes
+markers <- findMarkers(spe, test = "binom", direction = "up")
+
+# returns a list with one DataFrame per cluster
+markers
+
+# plot log-fold changes for one cluster over all other clusters
+# selecting cluster 5
+interesting <- markers[[5]]
+best_set <- interesting[interesting$Top <= 5, ]
+logFCs <- getMarkerEffects(best_set)
+
+pheatmap(logFCs, breaks = seq(-5, 5, length.out = 101))
+
+# plot log-transformed normalized expression of top genes for one cluster
+top_genes <- head(rownames(interesting))
+
+plotExpression(spe, x = "label", features = top_genes)
+```
+
+
+18  spatialLIBD workflow
+18.2.2 Want to learn more about spatialLIBD?
+```{r}
+citation("spatialLIBD")[1]
+```
+
+18.3 Code prerequisites
+```{r}
+## Start tracking time
+time_start <- Sys.time()
+
+# load object
+spe <- Visium_humanDLPFC()
+
+# subset to keep only spots over tissue
+spe <- spe[, colData(spe)$in_tissue == 1]
+
+# identify mitochondrial genes
+is_mito <- grepl("(^MT-)|(^mt-)", rowData(spe)$gene_name)
+
+# calculate per-spot QC metrics and store in colData
+spe <- addPerCellQC(spe, subsets = list(mito = is_mito))
+
+# select QC thresholds
+qc_lib_size <- colData(spe)$sum < 600
+qc_detected <- colData(spe)$detected < 400
+qc_mito <- colData(spe)$subsets_mito_percent > 28
+qc_cell_count <- colData(spe)$cell_count > 10
+
+# combined set of discarded spots
+discard <- qc_lib_size | qc_detected | qc_mito | qc_cell_count
+
+# store in object
+colData(spe)$discard <- discard
+
+# filter low-quality spots
+spe <- spe[, !colData(spe)$discard]
+
+# calculate logcounts using library size factors
+spe <- logNormCounts(spe)
+
+# remove mitochondrial genes
+spe <- spe[!is_mito, ]
+
+# fit mean-variance relationship
+dec <- modelGeneVar(spe)
+
+# select top HVGs
+top_hvgs <- getTopHVGs(dec, prop = 0.1)
+
+# compute PCA
+set.seed(123)
+spe <- runPCA(spe, subset_row = top_hvgs)
+
+# compute UMAP on top 50 PCs
+set.seed(123)
+spe <- runUMAP(spe, dimred = "PCA")
+
+# update column names for easier plotting
+colnames(reducedDim(spe, "UMAP")) <- paste0("UMAP", 1:2)
+
+# graph-based clustering
+set.seed(123)
+k <- 10
+g <- buildSNNGraph(spe, k = k, use.dimred = "PCA")
+g_walk <- igraph::cluster_walktrap(g)
+clus <- g_walk$membership
+
+# store cluster labels in column 'label' in colData
+colLabels(spe) <- factor(clus)
+
+# set gene names as row names for easier plotting
+rownames(spe) <- rowData(spe)$gene_name
+
+# test for marker genes
+markers <- findMarkers(spe, test = "binom", direction = "up")
+
+## Find the interesting markers for each cluster
+interesting <- sapply(markers, function(x) x$Top <= 5)
+colnames(interesting) <- paste0("gene_interest_", seq_len(length(markers)))
+rowData(spe) <- cbind(rowData(spe), interesting)
+
+## How long this code took to run
+time_prereqs <- Sys.time()
+time_prereqs - time_start
+```
+
+
+18.4.1 Basic information
+```{r}
+## Add some information used by spatialLIBD
+spe$key <- paste0(spe$sample_id, "_", colnames(spe))
+spe$sum_umi <- colSums(counts(spe))
+spe$sum_gene <- colSums(counts(spe) > 0)
+```
+
+
+18.4.2 Gene annotation
+```{r}
+## Download the Gencode v32 GTF file and cache it
+bfc <- BiocFileCache::BiocFileCache()
+gtf_cache <- BiocFileCache::bfcrpath(
+    bfc,
+    paste0(
+        "ftp://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/",
+        "release_32/gencode.v32.annotation.gtf.gz"
+    )
+)
+
+## Show the GTF cache location
+gtf_cache
+
+## Import into R (takes ~1 min)
+gtf <- rtracklayer::import(gtf_cache)
+
+## Subset to genes only
+gtf <- gtf[gtf$type == "gene"]
+
+## Remove the .x part of the gene IDs
+gtf$gene_id <- gsub("\\..*", "", gtf$gene_id)
+
+## Set the names to be the gene IDs
+names(gtf) <- gtf$gene_id
+
+## Match the genes
+match_genes <- match(rowData(spe)$gene_id, gtf$gene_id)
+table(is.na(match_genes))
+
+## Drop the few genes for which we don't have information
+spe <- spe[!is.na(match_genes), ]
+match_genes <- match_genes[!is.na(match_genes)]
+
+## Keep only some columns from the gtf
+mcols(gtf) <- mcols(gtf)[, c("source", "type", "gene_id", "gene_name", "gene_type")]
+
+## Save the "interest"ing columns from our original spe object
+interesting <- rowData(spe)[, grepl("interest", colnames(rowData(spe)))]
+
+## Add the gene info to our SPE object
+rowRanges(spe) <- gtf[match_genes]
+
+## Add back the "interest" coolumns
+rowData(spe) <- cbind(rowData(spe), interesting)
+
+## Inspect the gene annotation data we added
+rowRanges(spe)
+
+## Add information used by spatialLIBD
+rowData(spe)$gene_search <- paste0(
+    rowData(spe)$gene_name, "; ", rowData(spe)$gene_id
+)
+
+## Compute chrM expression and chrM expression ratio
+is_mito <- which(seqnames(spe) == "chrM")
+spe$expr_chrM <- colSums(counts(spe)[is_mito, , drop = FALSE])
+spe$expr_chrM_ratio <- spe$expr_chrM / spe$sum_umi
+```
+
+
+18.4.3 Extra information and filtering
+```{r}
+## Add a variable for saving the manual annotations
+spe$ManualAnnotation <- "NA"
+
+## Remove genes with no data
+no_expr <- which(rowSums(counts(spe)) == 0)
+
+## Number of genes with no counts
+length(no_expr)
+
+## Compute the percent of genes with no counts
+length(no_expr) / nrow(spe) * 100
+
+spe <- spe[-no_expr, , drop = FALSE]
+
+## Remove spots without counts
+summary(spe$sum_umi)
+
+## If we had spots with no counts, we would remove them
+if (any(spe$sum_umi == 0)) {
+    spots_no_counts <- which(spe$sum_umi == 0)
+    ## Number of spots with no counts
+    print(length(spots_no_counts))
+    ## Percent of spots with no counts
+    print(length(spots_no_counts) / ncol(spe) * 100)
+    spe <- spe[, -spots_no_counts, drop = FALSE]
+}
+
+## Run check_spe() function
+spatialLIBD::check_spe(spe)
+
+## End tracking time
+time_end <- Sys.time()
+
+## How long this code took to run
+time_end - time_prereqs
+
+saveRDS(spe, file = "spe_workflow_Visium_spatialLIBD.rds")
+
+spe <- readRDS("spe_workflow_Visium_spatialLIBD.rds")
+```
+
+
+18.5 Explore the data
+```{r}
+## Sum of UMI
+spatialLIBD::vis_gene(
+    spe = spe,
+    sampleid = "sample_151673",
+    geneid = "sum_umi"
+)
+
+## PCP4, a layer 5 marker gene
+spatialLIBD::vis_gene(
+    spe = spe,
+    sampleid = "sample_151673",
+    geneid = rowData(spe)$gene_search[which(rowData(spe)$gene_name == "PCP4")]
+)
+
+## Explore all the variables we can use
+colData(spe)
+
+## Run our shiny app
+if (interactive()) {
+    spatialLIBD::run_app(
+        spe,
+        sce_layer = NULL,
+        modeling_results = NULL,
+        sig_genes = NULL,
+        title = "OSTA spatialLIBD workflow example",
+        spe_discrete_vars = c("ground_truth", "label", "ManualAnnotation"),
+        spe_continuous_vars = c(
+            "cell_count",
+            "sum_umi",
+            "sum_gene",
+            "expr_chrM",
+            "expr_chrM_ratio",
+            "sum",
+            "detected",
+            "subsets_mito_sum",
+            "subsets_mito_detected",
+            "subsets_mito_percent",
+            "total",
+            "sizeFactor"
+        ),
+        default_cluster = "label"
+    )
+}
+```
+
+
+18.6 Sharing your website
+```{r}
+## Object size
+lobstr::obj_size(spe) / 1024^2 ## Convert to MB
+
+library("markdown") # for shinyapps.io
+ 
+ ## spatialLIBD uses golem
+ options("golem.app.prod" = TRUE)
+ 
+ ## You need this to enable shinyapps to install Bioconductor packages
+ options(repos = BiocManager::repositories())
+ 
+ ## Load the data
+ spe <- readRDS("spe_workflow_Visium_spatialLIBD.rds")
+ 
+ ## Deploy the website
+ spatialLIBD::run_app(
+     spe,
+     sce_layer = NULL,
+     modeling_results = NULL,
+     sig_genes = NULL,
+     title = "OSTA spatialLIBD workflow example",
+     spe_discrete_vars = c("ground_truth", "label", "ManualAnnotation"),
+     spe_continuous_vars = c(
+         "cell_count",
+         "sum_umi",
+         "sum_gene",
+         "expr_chrM",
+         "expr_chrM_ratio",
+         "sum",
+         "detected",
+         "subsets_mito_sum",
+         "subsets_mito_detected",
+         "subsets_mito_percent",
+         "total",
+         "sizeFactor"
+     ),
+     default_cluster = "label",
+     docs_path = "www"
+ )
+ 
+ 
+library('rsconnect')
+ 
+ ## Or you can go to your shinyapps.io account and copy this
+ ## Here we do this to keep our information hidden.
+ load(".deploy_info.Rdata")
+ rsconnect::setAccountInfo(
+     name = deploy_info$name,
+     token = deploy_info$token,
+     secret = deploy_info$secret
+ )
+ 
+ ## You need this to enable shinyapps to install Bioconductor packages
+ options(repos = BiocManager::repositories())
+ 
+ ## Deploy the app, that is, upload it to shinyapps.io
+ rsconnect::deployApp(
+     appFiles = c(
+         "app.R",
+         "spe_workflow_Visium_spatialLIBD.rds",
+         dir("www", full.names = TRUE)
+     ),
+     appName = 'OSTA_spatialLIBD_demo',
+     account = 'libd',
+     server = 'shinyapps.io'
+ )
+```
+
+
+R session information
+```{r}
+options(width = 120)
+sessioninfo::session_info()
+```
+

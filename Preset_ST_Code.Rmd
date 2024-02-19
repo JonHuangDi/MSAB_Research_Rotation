@@ -1,0 +1,70 @@
+---
+title: "Preset_ST_Code"
+author: "Jonathan"
+date: "2024-02-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Setup
+```{r}
+library(spdep)
+library(rstan)
+library(ggplot2)
+library(tmap)
+rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())
+library(SingleCellExperiment)
+library(SummarizedExperiment)
+library(MatrixGenerics)
+library(matrixStats)
+library(SpatialExperiment)
+library(STexampleData)
+library(ggspavis)
+library(scuttle)
+library(scater)
+library(scran)
+library(pheatmap)
+library(nnSVG)
+library(igraph)
+library(BiocFileCache)
+library(rtracklayer)
+library(lobstr)
+library(spatialLIBD)
+```
+
+Insert Code and Analysis
+```{r}
+spe <- 'Load data set here'
+spe
+dim(spe)
+assayNames(spe)
+head(rowData(spe))
+head(colData(spe))
+head(spatialCoords(spe))
+imgData(spe)
+dim(rowData(spe))
+```
+
+Quality Control
+```{r}
+plotSpots(spe)
+
+# subset to keep only spots over tissue
+spe <- spe[, colData(spe)$in_tissue == 1]
+dim(spe)
+
+# identify mitochondrial genes
+is_mito <- grepl("(^MT-)|(^mt-)", rowData(spe)$gene_name)
+table(is_mito)
+
+rowData(spe)$gene_name[is_mito]
+
+# calculate per-spot QC metrics and store in colData
+spe <- addPerCellQC(spe, subsets = list(mito = is_mito))
+head(colData(spe))
+```
+
