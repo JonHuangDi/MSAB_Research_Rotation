@@ -9,22 +9,57 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+Setup
+```{r}
+library(spdep)
+library(spData)
+library(sp)
+library(tmap)
+library(GISTools)
+localmoran(x, listw, zero.policy=attr(listw, "zero.policy"), na.action=na.fail,
+        conditional=TRUE, alternative = "two.sided", mlvar=TRUE,
+        spChk=NULL, adjust.x=FALSE)
+localmoran_perm(x, listw, nsim=499, zero.policy=attr(listw, "zero.policy"), 
+        na.action=na.fail, alternative = "two.sided", mlvar=TRUE,
+        spChk=NULL, adjust.x=FALSE, sample_Ei=TRUE, iseed=NULL,
+        no_repeat_in_row=FALSE)
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
+Practice
+```{r}
+data(afcon, package="spData")
+oid <- order(afcon$id)
+resI <- localmoran(afcon$totcon, nb2listw(paper.nb))
+printCoefmat(data.frame(resI[oid,], row.names=afcon$name[oid]),
+ check.names=FALSE)
+hist(resI[,5]) 
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+mean(resI[,1])
+sum(resI[,1])/Szero(nb2listw(paper.nb))
+moran.test(afcon$totcon, nb2listw(paper.nb))
+# note equality for mean() only when the sum of weights equals
+# the number of observations (thanks to Juergen Symanzik)
+resI <- localmoran(afcon$totcon, nb2listw(paper.nb))
+printCoefmat(data.frame(resI[oid,], row.names=afcon$name[oid]),
+ check.names=FALSE)
+hist(p.adjust(resI[,5], method="bonferroni"))
+
+totcon <-afcon$totcon
+is.na(totcon) <- sample(1:length(totcon), 5)
+totcon
+resI.na <- localmoran(totcon, nb2listw(paper.nb), na.action=na.exclude,
+ zero.policy=TRUE)
+if (class(attr(resI.na, "na.action")) == "exclude") {
+ print(data.frame(resI.na[oid,], row.names=afcon$name[oid]), digits=2)
+} else print(resI.na, digits=2)
+resG <- localG(afcon$totcon, nb2listw(include.self(paper.nb)))
+print(data.frame(resG[oid], row.names=afcon$name[oid]), digits=2)
+set.seed(1)
+resI_p <- localmoran_perm(afcon$totcon, nb2listw(paper.nb))
+printCoefmat(data.frame(resI_p[oid,], row.names=afcon$name[oid]),
+ check.names=FALSE)
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

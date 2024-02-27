@@ -4,46 +4,8 @@ author: "Jonathan"
 date: "2023-11-04"
 output: html_document
 ---
-library setup
-```{r}
-library(spdep)
-library(rstan)
-library(ggplot2)
-library(tmap)
-rstan_options(auto_write = TRUE)
-options(mc.cores = parallel::detectCores())
-```
 
-```{r}
-load('ireland.RData')
-ireland.nb <- poly2nb(ireland,snap=0.0002)
-```
-
-```{r}
-plot(ireland)
-plot(ireland.nb,coords=coordinates(ireland),add=TRUE,pch=16,col='darkred')
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-SpatialExperiment 
-
+Set Up SpatialExperiment
 ```{r}
 library(SingleCellExperiment)
 library(SummarizedExperiment)
@@ -62,6 +24,7 @@ library(BiocFileCache)
 library(rtracklayer)
 library(lobstr)
 library(spatialLIBD)
+library(dplyr)
 ```
 
 5.3 Load Data
