@@ -1,0 +1,92 @@
+---
+title: "Implement_LMI_to_spe"
+author: "Jonathan"
+date: "2024-02-27"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+library setup
+```{r}
+library(SingleCellExperiment)
+library(SummarizedExperiment)
+library(MatrixGenerics)
+library(matrixStats)
+library(SpatialExperiment)
+library(STexampleData)
+library(ggspavis)
+library(scuttle)
+library(scater)
+library(scran)
+library(pheatmap)
+library(nnSVG)
+library(igraph)
+library(BiocFileCache)
+library(rtracklayer)
+library(lobstr)
+library(spatialLIBD)
+library(dplyr)
+library(spdep)
+library(spData)
+library(sp)
+```
+
+
+Data setup
+```{r}
+spe <- Visium_humanDLPFC()
+
+# subset to keep only spots over tissue
+spe <- spe[, colData(spe)$in_tissue == 1]
+dim(spe)
+
+# identify mitochondrial genes
+is_mito <- grepl("(^MT-)|(^mt-)", rowData(spe)$gene_name)
+table(is_mito)
+
+rowData(spe)$gene_name[is_mito]
+
+# calculate per-spot QC metrics and store in colData
+spe <- addPerCellQC(spe, subsets = list(mito = is_mito))
+head(colData(spe))
+
+# histogram of library sizes
+hist(colData(spe)$sum, breaks = 20)
+
+# plot library size vs. number of cells per spot
+plotQC(spe, type = "scatter", 
+       metric_x = "cell_count", metric_y = "sum", 
+       threshold_y = 600)
+
+# select QC threshold for library size
+qc_lib_size <- colData(spe)$sum < 600
+table(qc_lib_size)
+
+colData(spe)$qc_lib_size <- qc_lib_size
+
+# check spatial pattern of discarded spots
+plotQC(spe, type = "spots", 
+       discard = "qc_lib_size")
+```
+
+
+Local Moran's I Implentation
+```{r}
+data("georgia")
+umi <- colData(spe)$sum
+id <- colData(spe)$barcode_id
+nb <- poly2nb(p1 = umi)
+oid <- order(id)
+resI <- localmoran(umi, nb2listw(nb))
+printCoefmat(data.frame(resI[oid,], row.names=afcon$name[oid]),
+ check.names=FALSE)
+hist(resI[,5]) 
+
+mean(resI[,1])
+sum(resI[,1])/Szero(nb2listw(paper.nb))
+moran.test(umi, nb2listw(paper.nb))
+```
+
