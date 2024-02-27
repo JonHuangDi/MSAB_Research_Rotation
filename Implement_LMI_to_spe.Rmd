@@ -75,18 +75,18 @@ plotQC(spe, type = "spots",
 
 Local Moran's I Implentation
 ```{r}
-data("georgia")
 umi <- colData(spe)$sum
-id <- colData(spe)$barcode_id
-nb <- poly2nb(p1 = umi)
-oid <- order(id)
+# id <- colData(spe)$barcode_id
+
+nb <- knn2nb(knearneigh(spatialCoords(spe), k=10))
+
+# oid <- order(id)
 resI <- localmoran(umi, nb2listw(nb))
-printCoefmat(data.frame(resI[oid,], row.names=afcon$name[oid]),
+printCoefmat(data.frame(resI),
  check.names=FALSE)
 hist(resI[,5]) 
-
 mean(resI[,1])
 sum(resI[,1])/Szero(nb2listw(paper.nb))
-moran.test(umi, nb2listw(paper.nb))
+moran.test(umi, nb2listw(nb))
 ```
 
