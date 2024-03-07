@@ -38,55 +38,88 @@ library(sp)
 Data setup
 ```{r}
 spe <- Visium_humanDLPFC()
-
 # subset to keep only spots over tissue
 spe <- spe[, colData(spe)$in_tissue == 1]
-dim(spe)
-
 # identify mitochondrial genes
 is_mito <- grepl("(^MT-)|(^mt-)", rowData(spe)$gene_name)
-table(is_mito)
-
-rowData(spe)$gene_name[is_mito]
-
 # calculate per-spot QC metrics and store in colData
 spe <- addPerCellQC(spe, subsets = list(mito = is_mito))
-head(colData(spe))
 
-# histogram of library sizes
-hist(colData(spe)$sum, breaks = 20)
-
-# plot library size vs. number of cells per spot
-plotQC(spe, type = "scatter", 
-       metric_x = "cell_count", metric_y = "sum", 
-       threshold_y = 600)
-
-# select QC threshold for library size
-qc_lib_size <- colData(spe)$sum < 600
-table(qc_lib_size)
-
-colData(spe)$qc_lib_size <- qc_lib_size
-
-# check spatial pattern of discarded spots
-plotQC(spe, type = "spots", 
-       discard = "qc_lib_size")
+# # plot library size vs. number of cells per spot
+# plotQC(spe, type = "scatter", 
+#        metric_x = "cell_count", metric_y = "sum", 
+#        threshold_y = 600)
+# 
+# # select QC threshold for library size
+# qc_lib_size <- colData(spe)$sum < 600
+# table(qc_lib_size)
+# 
+# colData(spe)$qc_lib_size <- qc_lib_size
+# 
+# # check spatial pattern of discarded spots
+# plotQC(spe, type = "spots", 
+#        discard = "qc_lib_size")
 ```
 
 
 Local Moran's I Implentation
 ```{r}
 umi <- colData(spe)$sum
-# id <- colData(spe)$barcode_id
-
+id <- rownames(spatialCoords(spe))
 nb <- knn2nb(knearneigh(spatialCoords(spe), k=10))
-
-# oid <- order(id)
+oid <- order(id)
 resI <- localmoran(umi, nb2listw(nb))
-printCoefmat(data.frame(resI),
+
+lmi_data <- printCoefmat(data.frame(resI[oid,], row.names=rownames(spatialCoords(spe))[oid]),
  check.names=FALSE)
-hist(resI[,5]) 
-mean(resI[,1])
-sum(resI[,1])/Szero(nb2listw(paper.nb))
-moran.test(umi, nb2listw(nb))
+
+hist(resI[,5])
+hist(resI[,1])
+table(resI[,1])
+# mean(resI[,1])
+# sum(resI[,1])/Szero(nb2listw(paper.nb))
+# moran.test(umi, nb2listw(nb))
+```
+
+Storing Local Moran's I into col Data + Categorizing Ii
+```{r}
+colData(spe)$Ii <- lmi_data$Ii
+
+Ii_groups <- ifelse(lmi_data$Ii < -0.5, "0-Extreme Negative Corr (<-1)", Ii_groups)
+# Ii_groups <- ifelse(lmi_data$Ii >= -1 & lmi_data$Ii < -0.5, "1-Highly Negative Corr (-1:-0.5)", Ii_groups)
+Ii_groups <- ifelse(lmi_data$Ii >= -0.5 & lmi_data$Ii < -0.1, "2-Negative Corr (-0.5:-0.1)", Ii_groups)
+Ii_groups <- ifelse(lmi_data$Ii >= -0.1 & lmi_data$Ii < 0.1, "3-Low corr", Ii_groups)
+# Ii_groups <- ifelse(lmi_data$Ii == 0, "4-No Correation (0)", Ii_groups)
+# Ii_groups <- ifelse(lmi_data$Ii > 0 & lmi_data$Ii <= 0.3, "5-Low Positive Corr (0:0.3)", Ii_groups)
+Ii_groups <- ifelse(lmi_data$Ii > 0.1 & lmi_data$Ii <= 0.5, "6-Positive Corr (0.1:0.5)", Ii_groups)
+# Ii_groups <- ifelse(lmi_data$Ii > 0.5 & lmi_data$Ii <= 1, "7-Highly Positive Corr (0.5:1)", Ii_groups)
+Ii_groups <- ifelse(lmi_data$Ii > 0.5,"8-Extreme Positive Corr (>0.5)", Ii_groups)
+table(Ii_groups)
+colData(spe)$Ii_groups <- Ii_groups
+```
+
+Option 2 of Labeling
+```{r}
+Ii_groups <- ifelse(lmi_data$Ii < 0, "0-Non-correlated (<0)", Ii_groups)
+Ii_groups <- ifelse(lmi_data$Ii > 0 & lmi_data$Ii <= 0.4, "1-Low Positive Corr (0:0.4)", Ii_groups)
+# Ii_groups <- ifelse(lmi_data$Ii > 0.3 & lmi_data$Ii <= 0.5, "2-Positive Corr (0.3:0.5)", Ii_groups)
+Ii_groups <- ifelse(lmi_data$Ii > 0.4, "3-Positive Corr (>0.4)", Ii_groups)
+table(Ii_groups)
+colData(spe)$Ii_groups <- Ii_groups
+
+```
+
+
+
+Graphing Local Moran's I onto Scatter plot
+```{r}
+plotSpots(spe, annotate = "Ii",
+          palette = "libd_layer_colors")
+
+plotSpots(spe, annotate = "Ii_groups", 
+          palette = "libd_layer_colors")
+
+plotSpots(spe, annotate = "ground_truth",
+          palette = "libd_layer_colors")
 ```
 
