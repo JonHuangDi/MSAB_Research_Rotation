@@ -1,0 +1,110 @@
+---
+title: "Whole_Transcriptome"
+author: "Jonathan"
+date: "2024-03-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+library setup
+```{r}
+library(SpatialExperiment)
+library(spdep)
+library(scran)
+library(scuttle)
+library(dplyr)
+library(ggspavis)
+library(spdep)
+library(scater)
+```
+
+data setup
+```{r}
+dir <- file.path("/Users/jonathanhuang/Desktop/Boston_University/Research_Rotation/ST_Project/MSAB_Research_Rotation/Human_Breast_Cancer/Whole_Transcriptome")
+samples <- file.path(dir, "outs")
+wt<- read10xVisium(samples = samples)
+```
+
+Overview + Quality Control
+```{r}
+plotSpots(wt)
+head(colData(wt))
+head(rowData(wt))
+head(spatialCoords(wt))
+
+spe_wt <- wt[, colData(wt)$in_tissue == 1]
+dim(spe_wt)
+
+# idHBC# identify mitochondrial genes
+is_mito <- grepl("(^MT-)|(^mt-)", rowData(spe_wt)$symbol)
+table(is_mito)
+
+rowData(spe_wt)$symbol[is_mito]
+
+# calculate per-spot QC metrics and store in colData
+spe_wt_f <- addPerCellQC(spe_wt, subsets = list(mito = is_mito))
+head(colData(spe_wt_f))
+```
+
+
+Local Moran's I Implentation (sum of UMI)
+```{r}
+umi <- colData(spe_wt_f)$sum
+id <- rownames(spatialCoords(spe_wt_f))
+nb <- knn2nb(knearneigh(spatialCoords(spe_wt_f), k=18))
+oid <- order(id)
+resI <- localmoran(umi, nb2listw(nb))
+
+lmi_data <- printCoefmat(data.frame(resI[oid,], row.names=rownames(spatialCoords(spe_wt_f))[oid]),
+ check.names=FALSE)
+colData(spe_wt_f)$Ii_sum <- lmi_data$Ii
+
+hist(resI[,5])
+hist(resI[,1])
+```
+
+Local Moran's I Implentation (detected features)
+```{r}
+umi <- colData(spe_wt_f)$detected
+id <- rownames(spatialCoords(spe_wt_f))
+nb <- knn2nb(knearneigh(spatialCoords(spe_wt_f), k=18))
+oid <- order(id)
+resI <- localmoran(umi, nb2listw(nb))
+
+lmi_data <- printCoefmat(data.frame(resI[oid,], row.names=rownames(spatialCoords(spe_wt_f))[oid]),
+ check.names=FALSE)
+colData(spe_wt_f)$Ii_detected <- lmi_data$Ii
+
+hist(resI[,5])
+hist(resI[,1])
+```
+
+Local Moran's I Implentation (Mitochondrial Percentages)
+```{r}
+umi <- colData(spe_wt_f)$subsets_mito_percent
+id <- rownames(spatialCoords(spe_wt_f))
+nb <- knn2nb(knearneigh(spatialCoords(spe_wt_f), k=18))
+oid <- order(id)
+resI <- localmoran(umi, nb2listw(nb))
+
+lmi_data <- printCoefmat(data.frame(resI[oid,], row.names=rownames(spatialCoords(spe_wt_f))[oid]),
+ check.names=FALSE)
+colData(spe_wt_f)$Ii_subsets_mito_percent <- lmi_data$Ii
+
+hist(resI[,5])
+hist(resI[,1])
+```
+
+plot
+```{r}
+plotSpots(spe_wt_f, annotate = "Ii_sum",
+          palette = c("grey", "navy"))
+plotSpots(spe_wt_f, annotate = "Ii_detected",
+          palette = c("grey", "navy"))
+plotSpots(spe_wt_f, annotate = "Ii_subsets_mito_percent",
+          palette = c("grey", "navy"))
+```
+

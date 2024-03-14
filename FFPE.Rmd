@@ -1,0 +1,131 @@
+---
+title: "Human_Breast_Cancer"
+author: "Jonathan"
+date: "2024-03-12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+library setup
+```{r}
+library(SpatialExperiment)
+library(spdep)
+library(scran)
+library(scuttle)
+library(dplyr)
+library(ggspavis)
+library(spdep)
+library(scater)
+```
+
+data setup
+```{r}
+dir <- file.path("/Users/jonathanhuang/Desktop/Boston_University/Research_Rotation/ST_Project/MSAB_Research_Rotation/Human_Breast_Cancer/FFPE_Files")
+samples <- file.path(dir, "outs")
+FFPE<- read10xVisium(samples = samples)
+```
+
+Overview + Quality Control
+```{r}
+plotSpots(FFPE)
+head(colData(FFPE))
+head(rowData(FFPE))
+head(spatialCoords(FFPE))
+
+spe_FFPE <- FFPE[, colData(FFPE)$in_tissue == 1]
+dim(spe_FFPE)
+
+# calculate per-spot QC metrics and store in colData
+spe_FFPE_f <- addPerCellQC(spe_FFPE)
+head(colData(spe_FFPE_f))
+```
+
+
+Local Moran's I Implentation for Mitochondial Genes
+```{r}
+umi <- colData(spe_FFPE_f)$sum
+id <- rownames(spatialCoords(spe_FFPE_f))
+nb <- knn2nb(knearneigh(spatialCoords(spe_FFPE_f), k=18))
+oid <- order(id)
+resI <- localmoran(umi, nb2listw(nb))
+
+lmi_data <- printCoefmat(data.frame(resI[oid,], row.names=rownames(spatialCoords(spe_FFPE_f))[oid]),
+ check.names=FALSE)
+colData(spe_FFPE_f)$Ii_sum <- lmi_data$Ii
+
+hist(resI[,5])
+hist(resI[,1])
+
+plotSpots(spe_FFPE_f, annotate = "Ii_sum",
+          palette = c("grey", "navy"))
+
+
+```
+
+
+Local Moran's I Implentation for Detected Features
+```{r}
+umi <- colData(spe_FFPE_f)$detected
+id <- rownames(spatialCoords(spe_FFPE_f))
+nb <- knn2nb(knearneigh(spatialCoords(spe_FFPE_f), k=18))
+oid <- order(id)
+resI <- localmoran(umi, nb2listw(nb))
+
+lmi_data <- printCoefmat(data.frame(resI[oid,], row.names=rownames(spatialCoords(spe_FFPE_f))[oid]),
+ check.names=FALSE)
+colData(spe_FFPE_f)$Ii_detected <- lmi_data$Ii
+
+hist(resI[,5])
+hist(resI[,1])
+
+plotSpots(spe_FFPE_f, annotate = "Ii_detected",
+          palette = c("grey", "navy"))
+```
+
+
+Quality Control Codes if needed.
+```{r}
+# #nUMI
+# hist(colData(spe_HBC_f)$sum, breaks = 30)
+# qc_lib_size <- colData(spe_HBC_f)$sum < 500
+# table(qc_lib_size)
+# colData(spe_HBC_f)$qc_lib_size <- qc_lib_size
+# # check spatial pattern of discarded spots
+# plotQC(spe_HBC_f, type = "spots", 
+#        discard = "qc_lib_size")
+# 
+# 
+# #detected features
+# hist(colData(spe_HBC_f)$detected, breaks = 30)
+# qc_detected <- colData(spe_HBC_f)$detected < 800
+# table(qc_detected)
+# colData(spe_HBC_f)$qc_detected <- qc_detected
+# # check spatial pattern of discarded spots
+# plotQC(spe_HBC_f, type = "spots", 
+#        discard = "qc_detected")
+# 
+# hist(colData(spe_HBC_f)$subsets_mito_percent, breaks = 30)
+# qc_mito <- colData(spe_HBC_f)$subsets_mito_percent > 0.7
+# table(qc_mito)
+# colData(spe_HBC_f)$qc_mito <- qc_mito
+# # check spatial pattern of discarded spots
+# plotQC(spe_HBC_f, type = "spots", 
+#        discard = "qc_mito")
+# 
+# # number of discarded spots for each metric
+# apply(cbind(qc_lib_size, qc_detected, qc_mito), 2, sum)
+# # combined set of discarded spots
+# discard <- qc_lib_size | qc_detected | qc_mito
+# table(discard)
+# # store in object
+# colData(spe_HBC_f)$discard <- discard
+# # check spatial pattern of combined set of discarded spots
+# plotQC(spe_HBC_f, type = "spots", 
+#        discard = "discard")
+# # remove combined set of low-quality spots
+# spe_HBC_f <- spe_HBC_f[, !colData(spe_HBC_f)$discard]
+```
+
