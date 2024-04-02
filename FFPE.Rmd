@@ -44,7 +44,7 @@ head(colData(spe_FFPE_f))
 ```
 
 
-Local Moran's I Implentation for Mitochondial Genes
+Local Moran's I Implentation for number of UMI
 ```{r}
 umi <- colData(spe_FFPE_f)$sum
 id <- rownames(spatialCoords(spe_FFPE_f))
@@ -61,8 +61,6 @@ hist(resI[,1])
 
 plotSpots(spe_FFPE_f, annotate = "Ii_sum",
           palette = c("grey", "navy"))
-
-
 ```
 
 
@@ -86,46 +84,131 @@ plotSpots(spe_FFPE_f, annotate = "Ii_detected",
 ```
 
 
-Quality Control Codes if needed.
+non-spatial clustering 
 ```{r}
-# #nUMI
-# hist(colData(spe_HBC_f)$sum, breaks = 30)
-# qc_lib_size <- colData(spe_HBC_f)$sum < 500
-# table(qc_lib_size)
-# colData(spe_HBC_f)$qc_lib_size <- qc_lib_size
-# # check spatial pattern of discarded spots
-# plotQC(spe_HBC_f, type = "spots", 
-#        discard = "qc_lib_size")
-# 
-# 
-# #detected features
-# hist(colData(spe_HBC_f)$detected, breaks = 30)
-# qc_detected <- colData(spe_HBC_f)$detected < 800
-# table(qc_detected)
-# colData(spe_HBC_f)$qc_detected <- qc_detected
-# # check spatial pattern of discarded spots
-# plotQC(spe_HBC_f, type = "spots", 
-#        discard = "qc_detected")
-# 
-# hist(colData(spe_HBC_f)$subsets_mito_percent, breaks = 30)
-# qc_mito <- colData(spe_HBC_f)$subsets_mito_percent > 0.7
-# table(qc_mito)
-# colData(spe_HBC_f)$qc_mito <- qc_mito
-# # check spatial pattern of discarded spots
-# plotQC(spe_HBC_f, type = "spots", 
-#        discard = "qc_mito")
-# 
-# # number of discarded spots for each metric
-# apply(cbind(qc_lib_size, qc_detected, qc_mito), 2, sum)
-# # combined set of discarded spots
-# discard <- qc_lib_size | qc_detected | qc_mito
-# table(discard)
-# # store in object
-# colData(spe_HBC_f)$discard <- discard
-# # check spatial pattern of combined set of discarded spots
-# plotQC(spe_HBC_f, type = "spots", 
-#        discard = "discard")
-# # remove combined set of low-quality spots
-# spe_HBC_f <- spe_HBC_f[, !colData(spe_HBC_f)$discard]
+spe_2 <- logNormCounts(spe_FFPE_f)
+
+dec <- modelGeneVar(spe_2)
+top_hvgs <- getTopHVGs(dec, prop = 0.1)
+
+# compute PCA
+set.seed(123)
+spe_2 <- runPCA(spe_2, subset_row = top_hvgs)
+# compute UMAP on top 50 PCs
+set.seed(123)
+spe_2 <- runUMAP(spe_2, dimred = "PCA")
+# update column names
+colnames(reducedDim(spe_2, "UMAP")) <- paste0("UMAP", 1:2)
+
+
+# graph-based clustering
+set.seed(123)
+k <- 42
+g <- buildSNNGraph(spe_2, k = k, use.dimred = "PCA")
+g_walk <- igraph::cluster_walktrap(g)
+clus <- g_walk$membership
+table(clus)
+
+# store cluster labels in column 'label' in colData
+colLabels(spe_2) <- factor(clus)
+
+# plot clusters in spatial x-y coordinates
+plotSpots(spe_2, annotate = "label", 
+          palette = "libd_layer_colors",size = 1.2)
+
+# plot clusters in PCA reduced dimensions
+plotDimRed(spe_2, type = "PCA", 
+           annotate = "label", palette = "libd_layer_colors")
+
+# plot clusters in UMAP reduced dimensions
+plotDimRed(spe_2, type = "UMAP", 
+           annotate = "label", palette = "libd_layer_colors")
+
+#Local Moran's I through Sum of UMI
+umi <- colData(spe_2)$sum
+id <- rownames(spatialCoords(spe_2))
+nb <- knn2nb(knearneigh(spatialCoords(spe_2), k=42))
+oid <- order(id)
+resI <- localmoran(umi, nb2listw(nb))
+
+lmi_data <- printCoefmat(data.frame(resI[oid,], row.names=rownames(spatialCoords(spe_2))[oid]),
+ check.names=FALSE)
+colData(spe_2)$Ii_sum <- lmi_data$Ii
+plotSpots(spe_2, annotate = "Ii_sum",
+          palette = c("grey", "navy"), size = 1.2) + 
+labs(title = "K = 42")
+
+spe_FFPE_filter <- spe_2[,colData(spe_2)$Ii_sum >0.5]
+plotSpots(spe_FFPE_filter, annotate = "Ii_sum",
+          palette = c("grey", "navy"), size = 1.2) + 
+labs(title = "Sum of UMI with High AutoCorr (Li > 0.5 with K = 42)")
+
+#Analzying the high Auto Corr with the clusters
+totaln_c1 <- sum(colData(spe_2)$label == 1)
+hc_c1 <- sum(colData(spe_2)$label == 1 & colData(spe_2)$Ii_sum >0.5)
+p_c1 <- hc_c1/totaln_c1*100
+
+totaln_c2 <- sum(colData(spe_2)$label == 2)
+hc_c2 <- sum(colData(spe_2)$label == 2 & colData(spe_2)$Ii_sum >0.5)
+p_c2 <- hc_c2/totaln_c2*100
+
+totaln_c3 <- sum(colData(spe_2)$label == 3)
+hc_c3 <- sum(colData(spe_2)$label == 3 & colData(spe_2)$Ii_sum >0.5)
+p_c3 <- hc_c3/totaln_c3*100
+
+totaln_c4 <- sum(colData(spe_2)$label == 4)
+hc_c4 <- sum(colData(spe_2)$label == 4 & colData(spe_2)$Ii_sum >0.5)
+p_c4 <- hc_c4/totaln_c4*100
+
+totaln_c5 <- sum(colData(spe_2)$label == 5)
+hc_c5 <- sum(colData(spe_2)$label == 5 & colData(spe_2)$Ii_sum >0.5)
+p_c5 <- hc_c5/totaln_c5*100
+
+totaln_c6 <- sum(colData(spe_2)$label == 6)
+hc_c6 <- sum(colData(spe_2)$label == 6 & colData(spe_2)$Ii_sum >0.5)
+p_c6 <- hc_c6/totaln_c6*100
 ```
+
+
+Testing for optimal k for Knn (sum of umi)
+```{r}
+umi <- colData(spe_FFPE_f)$sum
+id <- rownames(spatialCoords(spe_FFPE_f))
+nb <- knn2nb(knearneigh(spatialCoords(spe_FFPE_f), k=42))
+oid <- order(id)
+resI <- localmoran(umi, nb2listw(nb))
+
+lmi_data <- printCoefmat(data.frame(resI[oid,], row.names=rownames(spatialCoords(spe_FFPE_f))[oid]),
+ check.names=FALSE)
+colData(spe_FFPE_f)$Ii_sum <- lmi_data$Ii
+plotSpots(spe_FFPE_f, annotate = "Ii_sum",
+          palette = c("grey", "navy"), size = 1.2) + 
+labs(title = "K = 42")
+```
+
+Filtering for high autocorrlation
+```{r}
+spe_FFPE_filter <- spe_FFPE_f[,colData(spe_FFPE_f)$Ii_sum >0.5]
+plotSpots(spe_FFPE_filter, annotate = "Ii_sum",
+          palette = c("grey", "navy"), size = 1.2) + 
+labs(title = "Sum of UMI with High AutoCorr (Li > 0.5 with K = 42)")
+```
+
+
+Testing for optimal k = knn (dectected)
+```{r}
+umi <- colData(spe_FFPE_f)$detected
+id <- rownames(spatialCoords(spe_FFPE_f))
+nb <- knn2nb(knearneigh(spatialCoords(spe_FFPE_f), k=18))
+oid <- order(id)
+resI <- localmoran(umi, nb2listw(nb))
+
+lmi_data <- printCoefmat(data.frame(resI[oid,], row.names=rownames(spatialCoords(spe_FFPE_f))[oid]),
+ check.names=FALSE)
+colData(spe_FFPE_f)$Ii_detected <- lmi_data$Ii
+plotSpots(spe_FFPE_f, annotate = "Ii_detected",
+          palette = c("grey", "navy"), size = 1.2)+ 
+labs(title = "K = 18")
+```
+
 
