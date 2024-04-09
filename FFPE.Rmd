@@ -169,7 +169,7 @@ lmi_data <- printCoefmat(data.frame(resI[oid,], row.names=rownames(spatialCoords
  check.names=FALSE)
 colData(spe_2)$Ii_sum <- lmi_data$Ii
 plotSpots(spe_2, annotate = "Ii_sum",
-          palette = c("grey", "navy"), point_size = 1.2) + 
+          pal = c("grey", "navy"), point_size = 1.2) + 
 labs(title = "K = 18")
 ```
 
