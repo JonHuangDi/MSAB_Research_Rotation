@@ -48,19 +48,36 @@ Local Moran's I Implentation for number of UMI
 ```{r}
 umi <- colData(spe_FFPE_f)$sum
 id <- rownames(spatialCoords(spe_FFPE_f))
-nb <- knn2nb(knearneigh(spatialCoords(spe_FFPE_f), k=18))
 oid <- order(id)
-resI <- localmoran(umi, nb2listw(nb))
 
-lmi_data <- printCoefmat(data.frame(resI[oid,], row.names=rownames(spatialCoords(spe_FFPE_f))[oid]),
+nb_k6 <- knn2nb(knearneigh(spatialCoords(spe_FFPE_f), k=6))
+resI_k6 <- localmoran(umi, nb2listw(nb_k6))
+nb_k18 <- knn2nb(knearneigh(spatialCoords(spe_FFPE_f), k=18))
+resI_k18 <- localmoran(umi, nb2listw(nb_k18))
+nb_k36 <- knn2nb(knearneigh(spatialCoords(spe_FFPE_f), k=36))
+resI_k36 <- localmoran(umi, nb2listw(nb_k36))
+
+lmi_data_k6 <- printCoefmat(data.frame(resI_k6[oid,], row.names=rownames(spatialCoords(spe_FFPE_f))[oid]),
  check.names=FALSE)
-colData(spe_FFPE_f)$Ii_sum <- lmi_data$Ii
+lmi_data_k18 <- printCoefmat(data.frame(resI_k18[oid,], row.names=rownames(spatialCoords(spe_FFPE_f))[oid]),
+ check.names=FALSE)
+lmi_data_k36 <- printCoefmat(data.frame(resI_k36[oid,], row.names=rownames(spatialCoords(spe_FFPE_f))[oid]),
+ check.names=FALSE)
 
-hist(resI[,5])
-hist(resI[,1])
+colData(spe_FFPE_f)$Ii_sum_k6 <- lmi_data_k6$Ii
+colData(spe_FFPE_f)$Ii_sum_k18 <- lmi_data_k18$Ii
+colData(spe_FFPE_f)$Ii_sum_k36 <- lmi_data_k36$Ii
 
-plotSpots(spe_FFPE_f, annotate = "Ii_sum",
-          palette = c("grey", "navy"))
+colData(spe_FFPE_f)$Ii_sum_k6 <- ifelse(colData(spe_FFPE_f)$Ii_sum_k6 < 0,0, colData(spe_FFPE_f)$Ii_sum_k6)
+colData(spe_FFPE_f)$Ii_sum_k18 <- ifelse(colData(spe_FFPE_f)$Ii_sum_k18 < 0,0, colData(spe_FFPE_f)$Ii_sum_k18)
+colData(spe_FFPE_f)$Ii_sum_k36 <- ifelse(colData(spe_FFPE_f)$Ii_sum_k36 < 0,0, colData(spe_FFPE_f)$Ii_sum_k36)
+
+plotSpots(spe_FFPE_f, annotate = "Ii_sum_k6", pal = c("grey", "navy"),point_size = 1.2)+
+  labs(title = "Sum of UMI with High AutoCorr (K = 6)")
+plotSpots(spe_FFPE_f, annotate = "Ii_sum_k18", pal = c("grey", "navy"),point_size = 1.2)+
+  labs(title = "Sum of UMI with High AutoCorr (K = 18)")
+plotSpots(spe_FFPE_f, annotate = "Ii_sum_k36", pal = c("grey", "navy"),point_size = 1.2)+
+  labs(title = "Sum of UMI with High AutoCorr (K = 36)")
 ```
 
 
@@ -68,19 +85,36 @@ Local Moran's I Implentation for Detected Features
 ```{r}
 umi <- colData(spe_FFPE_f)$detected
 id <- rownames(spatialCoords(spe_FFPE_f))
-nb <- knn2nb(knearneigh(spatialCoords(spe_FFPE_f), k=18))
 oid <- order(id)
-resI <- localmoran(umi, nb2listw(nb))
 
-lmi_data <- printCoefmat(data.frame(resI[oid,], row.names=rownames(spatialCoords(spe_FFPE_f))[oid]),
+nb_k6 <- knn2nb(knearneigh(spatialCoords(spe_FFPE_f), k=6))
+resI_k6 <- localmoran(umi, nb2listw(nb_k6))
+nb_k18 <- knn2nb(knearneigh(spatialCoords(spe_FFPE_f), k=18))
+resI_k18 <- localmoran(umi, nb2listw(nb_k18))
+nb_k36 <- knn2nb(knearneigh(spatialCoords(spe_FFPE_f), k=36))
+resI_k36 <- localmoran(umi, nb2listw(nb_k36))
+
+lmi_data_k6 <- printCoefmat(data.frame(resI_k6[oid,], row.names=rownames(spatialCoords(spe_FFPE_f))[oid]),
  check.names=FALSE)
-colData(spe_FFPE_f)$Ii_detected <- lmi_data$Ii
+lmi_data_k18 <- printCoefmat(data.frame(resI_k18[oid,], row.names=rownames(spatialCoords(spe_FFPE_f))[oid]),
+ check.names=FALSE)
+lmi_data_k36 <- printCoefmat(data.frame(resI_k36[oid,], row.names=rownames(spatialCoords(spe_FFPE_f))[oid]),
+ check.names=FALSE)
 
-hist(resI[,5])
-hist(resI[,1])
+colData(spe_FFPE_f)$Ii_detected_k6 <- lmi_data_k6$Ii
+colData(spe_FFPE_f)$Ii_detected_k18 <- lmi_data_k18$Ii
+colData(spe_FFPE_f)$Ii_detected_k36 <- lmi_data_k36$Ii
 
-plotSpots(spe_FFPE_f, annotate = "Ii_detected",
-          palette = c("grey", "navy"))
+colData(spe_FFPE_f)$Ii_detected_k6 <- ifelse(colData(spe_FFPE_f)$Ii_detected_k6 < 0,0, colData(spe_FFPE_f)$Ii_detected_k6)
+colData(spe_FFPE_f)$Ii_detected_k18 <- ifelse(colData(spe_FFPE_f)$Ii_detected_k18 < 0,0, colData(spe_FFPE_f)$Ii_detected_k18)
+colData(spe_FFPE_f)$Ii_detected_k36 <- ifelse(colData(spe_FFPE_f)$Ii_detected_k36 < 0,0, colData(spe_FFPE_f)$Ii_detected_k36)
+
+plotSpots(spe_FFPE_f, annotate = "Ii_detected_k6", pal = c("grey", "navy"),point_size = 1.2)+
+   labs(title = "Number of Detected Features with High AutoCorr (K = 6)")
+plotSpots(spe_FFPE_f, annotate = "Ii_detected_k18", pal = c("grey", "navy"),point_size = 1.2)+
+   labs(title = "Number of Detected Features with High AutoCorr (K = 18)")
+plotSpots(spe_FFPE_f, annotate = "Ii_detected_k36", pal = c("grey", "navy"),point_size = 1.2)+
+   labs(title = "Number of Detected Features with High AutoCorr (K = 36)")
 ```
 
 
@@ -114,20 +148,20 @@ colLabels(spe_2) <- factor(clus)
 
 # plot clusters in spatial x-y coordinates
 plotSpots(spe_2, annotate = "label", 
-          palette = "libd_layer_colors",size = 1.2)
+          pal = "libd_layer_colors",point_size = 1.2)
 
 # plot clusters in PCA reduced dimensions
-plotDimRed(spe_2, type = "PCA", 
-           annotate = "label", palette = "libd_layer_colors")
+plotDimRed(spe_2, plot_type = "PCA", 
+           annotate = "label", pal = "libd_layer_colors")
 
 # plot clusters in UMAP reduced dimensions
-plotDimRed(spe_2, type = "UMAP", 
-           annotate = "label", palette = "libd_layer_colors")
+plotDimRed(spe_2, plot_type = "UMAP", 
+           annotate = "label", pal = "libd_layer_colors")
 
 #Local Moran's I through Sum of UMI
 umi <- colData(spe_2)$sum
 id <- rownames(spatialCoords(spe_2))
-nb <- knn2nb(knearneigh(spatialCoords(spe_2), k=42))
+nb <- knn2nb(knearneigh(spatialCoords(spe_2), k=18))
 oid <- order(id)
 resI <- localmoran(umi, nb2listw(nb))
 
@@ -135,80 +169,163 @@ lmi_data <- printCoefmat(data.frame(resI[oid,], row.names=rownames(spatialCoords
  check.names=FALSE)
 colData(spe_2)$Ii_sum <- lmi_data$Ii
 plotSpots(spe_2, annotate = "Ii_sum",
-          palette = c("grey", "navy"), size = 1.2) + 
-labs(title = "K = 42")
-
-spe_FFPE_filter <- spe_2[,colData(spe_2)$Ii_sum >0.5]
-plotSpots(spe_FFPE_filter, annotate = "Ii_sum",
-          palette = c("grey", "navy"), size = 1.2) + 
-labs(title = "Sum of UMI with High AutoCorr (Li > 0.5 with K = 42)")
-
-#Analzying the high Auto Corr with the clusters
-totaln_c1 <- sum(colData(spe_2)$label == 1)
-hc_c1 <- sum(colData(spe_2)$label == 1 & colData(spe_2)$Ii_sum >0.5)
-p_c1 <- hc_c1/totaln_c1*100
-
-totaln_c2 <- sum(colData(spe_2)$label == 2)
-hc_c2 <- sum(colData(spe_2)$label == 2 & colData(spe_2)$Ii_sum >0.5)
-p_c2 <- hc_c2/totaln_c2*100
-
-totaln_c3 <- sum(colData(spe_2)$label == 3)
-hc_c3 <- sum(colData(spe_2)$label == 3 & colData(spe_2)$Ii_sum >0.5)
-p_c3 <- hc_c3/totaln_c3*100
-
-totaln_c4 <- sum(colData(spe_2)$label == 4)
-hc_c4 <- sum(colData(spe_2)$label == 4 & colData(spe_2)$Ii_sum >0.5)
-p_c4 <- hc_c4/totaln_c4*100
-
-totaln_c5 <- sum(colData(spe_2)$label == 5)
-hc_c5 <- sum(colData(spe_2)$label == 5 & colData(spe_2)$Ii_sum >0.5)
-p_c5 <- hc_c5/totaln_c5*100
-
-totaln_c6 <- sum(colData(spe_2)$label == 6)
-hc_c6 <- sum(colData(spe_2)$label == 6 & colData(spe_2)$Ii_sum >0.5)
-p_c6 <- hc_c6/totaln_c6*100
-```
-
-
-Testing for optimal k for Knn (sum of umi)
-```{r}
-umi <- colData(spe_FFPE_f)$sum
-id <- rownames(spatialCoords(spe_FFPE_f))
-nb <- knn2nb(knearneigh(spatialCoords(spe_FFPE_f), k=42))
-oid <- order(id)
-resI <- localmoran(umi, nb2listw(nb))
-
-lmi_data <- printCoefmat(data.frame(resI[oid,], row.names=rownames(spatialCoords(spe_FFPE_f))[oid]),
- check.names=FALSE)
-colData(spe_FFPE_f)$Ii_sum <- lmi_data$Ii
-plotSpots(spe_FFPE_f, annotate = "Ii_sum",
-          palette = c("grey", "navy"), size = 1.2) + 
-labs(title = "K = 42")
-```
-
-Filtering for high autocorrlation
-```{r}
-spe_FFPE_filter <- spe_FFPE_f[,colData(spe_FFPE_f)$Ii_sum >0.5]
-plotSpots(spe_FFPE_filter, annotate = "Ii_sum",
-          palette = c("grey", "navy"), size = 1.2) + 
-labs(title = "Sum of UMI with High AutoCorr (Li > 0.5 with K = 42)")
-```
-
-
-Testing for optimal k = knn (dectected)
-```{r}
-umi <- colData(spe_FFPE_f)$detected
-id <- rownames(spatialCoords(spe_FFPE_f))
-nb <- knn2nb(knearneigh(spatialCoords(spe_FFPE_f), k=18))
-oid <- order(id)
-resI <- localmoran(umi, nb2listw(nb))
-
-lmi_data <- printCoefmat(data.frame(resI[oid,], row.names=rownames(spatialCoords(spe_FFPE_f))[oid]),
- check.names=FALSE)
-colData(spe_FFPE_f)$Ii_detected <- lmi_data$Ii
-plotSpots(spe_FFPE_f, annotate = "Ii_detected",
-          palette = c("grey", "navy"), size = 1.2)+ 
+          palette = c("grey", "navy"), point_size = 1.2) + 
 labs(title = "K = 18")
 ```
 
 
+Filtering for high autocorrlation (Ii > 0.5)
+```{r}
+spe_FFPE_filter <- spe_2[,colData(spe_2)$Ii_sum >0.5]
+plotSpots(spe_FFPE_filter, annotate = "label", 
+          pal = "libd_layer_colors",point_size = 1) + 
+labs(title = "Sum of UMI with High AutoCorr (Li > 0.5 with K = 18)")
+
+#Analzying the proportion of high Auto Corr with the clusters
+total_corr <- length(colData(spe_FFPE_filter)$Ii_sum)
+
+hc_c1 <- sum(colData(spe_FFPE_filter)$label == 1)
+p_c1 <- hc_c1/total_corr*100
+
+hc_c2 <- sum(colData(spe_FFPE_filter)$label == 2)
+p_c2 <- hc_c2/total_corr*100
+
+hc_c3 <- sum(colData(spe_FFPE_filter)$label == 3)
+p_c3 <- hc_c3/total_corr*100
+
+hc_c4 <- sum(colData(spe_FFPE_filter)$label == 4)
+p_c4 <- hc_c4/total_corr*100
+
+hc_c5 <- sum(colData(spe_FFPE_filter)$label == 5)
+p_c5 <- hc_c5/total_corr*100
+
+hc_c6 <- sum(colData(spe_FFPE_filter)$label == 6)
+p_c6 <- hc_c6/total_corr*100
+
+hist(as.numeric(colData(spe_FFPE_filter)$label), xlab = "Cluster Type", main = paste("Cluster Distribution (Li > 0.5)"), right = FALSE, breaks = c(1,2,3,4,5,6))
+```
+
+
+Filtering for high autocorrlation (Ii > 1.5)
+```{r}
+spe_FFPE_filter <- spe_2[,colData(spe_2)$Ii_sum >1.5]
+plotSpots(spe_FFPE_filter, annotate = "label", 
+          pal = "libd_layer_colors", point_size = 1) + 
+labs(title = "Sum of UMI with High AutoCorr (Li > 1.5 with K = 18)")
+
+#Analzying the proportion of high Auto Corr with the clusters
+total_corr <- length(colData(spe_FFPE_filter)$Ii_sum)
+
+hc_c1 <- sum(colData(spe_FFPE_filter)$label == 1)
+p_c1 <- hc_c1/total_corr*100
+
+hc_c2 <- sum(colData(spe_FFPE_filter)$label == 2)
+p_c2 <- hc_c2/total_corr*100
+
+hc_c3 <- sum(colData(spe_FFPE_filter)$label == 3)
+p_c3 <- hc_c3/total_corr*100
+
+hc_c4 <- sum(colData(spe_FFPE_filter)$label == 4)
+p_c4 <- hc_c4/total_corr*100
+
+hc_c5 <- sum(colData(spe_FFPE_filter)$label == 5)
+p_c5 <- hc_c5/total_corr*100
+
+hc_c6 <- sum(colData(spe_FFPE_filter)$label == 6)
+p_c6 <- hc_c6/total_corr*100
+
+hist(as.numeric(colData(spe_FFPE_filter)$label), xlab = "Cluster Type", main = paste("Cluster Distribution (Li > 1.5)"), right = FALSE, breaks = c(1,2,3,4,5,6))
+```
+
+Filtering for high autocorrlation (Ii > 2.5)
+```{r}
+spe_FFPE_filter <- spe_2[,colData(spe_2)$Ii_sum >2.5]
+plotSpots(spe_FFPE_filter,  annotate = "label", 
+          pal = "libd_layer_colors", point_size = 1) + 
+labs(title = "Sum of UMI with High AutoCorr (Li > 2.5 with K = 18)")
+
+#Analzying the proportion of high Auto Corr with the clusters
+total_corr <- length(colData(spe_FFPE_filter)$Ii_sum)
+
+hc_c1 <- sum(colData(spe_FFPE_filter)$label == 1)
+p_c1 <- hc_c1/total_corr*100
+
+hc_c2 <- sum(colData(spe_FFPE_filter)$label == 2)
+p_c2 <- hc_c2/total_corr*100
+
+hc_c3 <- sum(colData(spe_FFPE_filter)$label == 3)
+p_c3 <- hc_c3/total_corr*100
+
+hc_c4 <- sum(colData(spe_FFPE_filter)$label == 4)
+p_c4 <- hc_c4/total_corr*100
+
+hc_c5 <- sum(colData(spe_FFPE_filter)$label == 5)
+p_c5 <- hc_c5/total_corr*100
+
+hc_c6 <- sum(colData(spe_FFPE_filter)$label == 6)
+p_c6 <- hc_c6/total_corr*100
+
+hist(as.numeric(colData(spe_FFPE_filter)$label), xlab = "Cluster Type", main = paste("Cluster Distribution (Li > 2.5)"), right = FALSE, breaks = c(1,2,3,4,5,6))
+```
+
+Filtering for high autocorrlation (Ii > 3.5)
+```{r}
+spe_FFPE_filter <- spe_2[,colData(spe_2)$Ii_sum >3.5]
+plotSpots(spe_FFPE_filter,  annotate = "label", 
+          pal = "libd_layer_colors", point_size = 1) + 
+labs(title = "Sum of UMI with High AutoCorr (Li > 3.5 with K = 18)")
+
+#Analzying the proportion of high Auto Corr with the clusters
+total_corr <- length(colData(spe_FFPE_filter)$Ii_sum)
+
+hc_c1 <- sum(colData(spe_FFPE_filter)$label == 1)
+p_c1 <- hc_c1/total_corr*100
+
+hc_c2 <- sum(colData(spe_FFPE_filter)$label == 2)
+p_c2 <- hc_c2/total_corr*100
+
+hc_c3 <- sum(colData(spe_FFPE_filter)$label == 3)
+p_c3 <- hc_c3/total_corr*100
+
+hc_c4 <- sum(colData(spe_FFPE_filter)$label == 4)
+p_c4 <- hc_c4/total_corr*100
+
+hc_c5 <- sum(colData(spe_FFPE_filter)$label == 5)
+p_c5 <- hc_c5/total_corr*100
+
+hc_c6 <- sum(colData(spe_FFPE_filter)$label == 6)
+p_c6 <- hc_c6/total_corr*100
+
+hist(as.numeric(colData(spe_FFPE_filter)$label), xlab = "Cluster Type", main = paste("Cluster Distribution (Li > 3.5)"), right = FALSE, breaks = c(1,2,3,4,5,6))
+```
+
+Filtering for high autocorrlation (Ii > 4.5)
+```{r}
+spe_FFPE_filter <- spe_2[,colData(spe_2)$Ii_sum >4.5]
+plotSpots(spe_FFPE_filter,  annotate = "label", 
+          pal = "libd_layer_colors", point_size = 1) + 
+labs(title = "Sum of UMI with High AutoCorr (Li > 4.5 with K = 18)")
+
+#Analzying the proportion of high Auto Corr with the clusters
+total_corr <- length(colData(spe_FFPE_filter)$Ii_sum)
+
+hc_c1 <- sum(colData(spe_FFPE_filter)$label == 1)
+p_c1 <- hc_c1/total_corr*100
+
+hc_c2 <- sum(colData(spe_FFPE_filter)$label == 2)
+p_c2 <- hc_c2/total_corr*100
+
+hc_c3 <- sum(colData(spe_FFPE_filter)$label == 3)
+p_c3 <- hc_c3/total_corr*100
+
+hc_c4 <- sum(colData(spe_FFPE_filter)$label == 4)
+p_c4 <- hc_c4/total_corr*100
+
+hc_c5 <- sum(colData(spe_FFPE_filter)$label == 5)
+p_c5 <- hc_c5/total_corr*100
+
+hc_c6 <- sum(colData(spe_FFPE_filter)$label == 6)
+p_c6 <- hc_c6/total_corr*100
+
+hist(as.numeric(colData(spe_FFPE_filter)$label), xlab = "Cluster Type", main = paste("Cluster Distribution (Li > 4.5)"), right = FALSE, breaks = c(1,2,3,4,5,6))
+```
