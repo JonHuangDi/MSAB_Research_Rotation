@@ -54,57 +54,401 @@ Local Moran's I Implentation (sum of UMI)
 ```{r}
 umi <- colData(spe_wt_f)$sum
 id <- rownames(spatialCoords(spe_wt_f))
-nb <- knn2nb(knearneigh(spatialCoords(spe_wt_f), k=18))
 oid <- order(id)
-resI <- localmoran(umi, nb2listw(nb))
 
-lmi_data <- printCoefmat(data.frame(resI[oid,], row.names=rownames(spatialCoords(spe_wt_f))[oid]),
+nb_k6 <- knn2nb(knearneigh(spatialCoords(spe_wt_f), k=6))
+resI_k6 <- localmoran(umi, nb2listw(nb_k6))
+nb_k18 <- knn2nb(knearneigh(spatialCoords(spe_wt_f), k=18))
+resI_k18 <- localmoran(umi, nb2listw(nb_k18))
+nb_k36 <- knn2nb(knearneigh(spatialCoords(spe_wt_f), k=36))
+resI_k36 <- localmoran(umi, nb2listw(nb_k36))
+
+lmi_data_k6 <- printCoefmat(data.frame(resI_k6[oid,], row.names=rownames(spatialCoords(spe_wt_f))[oid]),
  check.names=FALSE)
-colData(spe_wt_f)$Ii_sum <- lmi_data$Ii
+lmi_data_k18 <- printCoefmat(data.frame(resI_k18[oid,], row.names=rownames(spatialCoords(spe_wt_f))[oid]),
+ check.names=FALSE)
+lmi_data_k36 <- printCoefmat(data.frame(resI_k36[oid,], row.names=rownames(spatialCoords(spe_wt_f))[oid]),
+ check.names=FALSE)
 
-hist(resI[,5])
-hist(resI[,1])
+colData(spe_wt_f)$Ii_sum_k6 <- lmi_data_k6$Ii
+colData(spe_wt_f)$Ii_sum_k18 <- lmi_data_k18$Ii
+colData(spe_wt_f)$Ii_sum_k36 <- lmi_data_k36$Ii
+
+colData(spe_wt_f)$Ii_sum_k6 <- ifelse(colData(spe_wt_f)$Ii_sum_k6 < 0,0, colData(spe_wt_f)$Ii_sum_k6)
+colData(spe_wt_f)$Ii_sum_k18 <- ifelse(colData(spe_wt_f)$Ii_sum_k18 < 0,0, colData(spe_wt_f)$Ii_sum_k18)
+colData(spe_wt_f)$Ii_sum_k36 <- ifelse(colData(spe_wt_f)$Ii_sum_k36 < 0,0, colData(spe_wt_f)$Ii_sum_k36)
+
+plotSpots(spe_wt_f, annotate = "Ii_sum_k6", pal = c("grey", "navy"),point_size = 1.2)+
+  labs(title = "Sum of UMI with High AutoCorr (K = 6)")
+plotSpots(spe_wt_f, annotate = "Ii_sum_k18", pal = c("grey", "navy"),point_size = 1.2)+
+  labs(title = "Sum of UMI with High AutoCorr (K = 18)")
+plotSpots(spe_wt_f, annotate = "Ii_sum_k36", pal = c("grey", "navy"),point_size = 1.2)+
+  labs(title = "Sum of UMI with High AutoCorr (K = 36)")
 ```
 
 Local Moran's I Implentation (detected features)
 ```{r}
 umi <- colData(spe_wt_f)$detected
 id <- rownames(spatialCoords(spe_wt_f))
-nb <- knn2nb(knearneigh(spatialCoords(spe_wt_f), k=18))
 oid <- order(id)
-resI <- localmoran(umi, nb2listw(nb))
 
-lmi_data <- printCoefmat(data.frame(resI[oid,], row.names=rownames(spatialCoords(spe_wt_f))[oid]),
+nb_k6 <- knn2nb(knearneigh(spatialCoords(spe_wt_f), k=6))
+resI_k6 <- localmoran(umi, nb2listw(nb_k6))
+nb_k18 <- knn2nb(knearneigh(spatialCoords(spe_wt_f), k=18))
+resI_k18 <- localmoran(umi, nb2listw(nb_k18))
+nb_k36 <- knn2nb(knearneigh(spatialCoords(spe_wt_f), k=36))
+resI_k36 <- localmoran(umi, nb2listw(nb_k36))
+
+lmi_data_k6 <- printCoefmat(data.frame(resI_k6[oid,], row.names=rownames(spatialCoords(spe_wt_f))[oid]),
  check.names=FALSE)
-colData(spe_wt_f)$Ii_detected <- lmi_data$Ii
+lmi_data_k18 <- printCoefmat(data.frame(resI_k18[oid,], row.names=rownames(spatialCoords(spe_wt_f))[oid]),
+ check.names=FALSE)
+lmi_data_k36 <- printCoefmat(data.frame(resI_k36[oid,], row.names=rownames(spatialCoords(spe_wt_f))[oid]),
+ check.names=FALSE)
 
-hist(resI[,5])
-hist(resI[,1])
+colData(spe_wt_f)$Ii_detected_k6 <- lmi_data_k6$Ii
+colData(spe_wt_f)$Ii_detected_k18 <- lmi_data_k18$Ii
+colData(spe_wt_f)$Ii_detected_k36 <- lmi_data_k36$Ii
+
+colData(spe_wt_f)$Ii_detected_k6 <- ifelse(colData(spe_wt_f)$Ii_detected_k6 < 0,0, colData(spe_wt_f)$Ii_detected_k6)
+colData(spe_wt_f)$Ii_detected_k18 <- ifelse(colData(spe_wt_f)$Ii_detected_k18 < 0,0, colData(spe_wt_f)$Ii_detected_k18)
+colData(spe_wt_f)$Ii_detected_k36 <- ifelse(colData(spe_wt_f)$Ii_detected_k36 < 0,0, colData(spe_wt_f)$Ii_detected_k36)
+
+plotSpots(spe_wt_f, annotate = "Ii_detected_k6", pal = c("grey", "navy"),point_size = 1.2)+
+  labs(title = "Detected Features with High AutoCorr (K = 6)")
+plotSpots(spe_wt_f, annotate = "Ii_detected_k18", pal = c("grey", "navy"),point_size = 1.2)+
+  labs(title = "Detected Features with High AutoCorr (K = 18)")
+plotSpots(spe_wt_f, annotate = "Ii_detected_k36", pal = c("grey", "navy"),point_size = 1.2)+
+  labs(title = "Detected Features with High AutoCorr (K = 36)")
 ```
 
 Local Moran's I Implentation (Mitochondrial Percentages)
 ```{r}
 umi <- colData(spe_wt_f)$subsets_mito_percent
 id <- rownames(spatialCoords(spe_wt_f))
-nb <- knn2nb(knearneigh(spatialCoords(spe_wt_f), k=18))
 oid <- order(id)
-resI <- localmoran(umi, nb2listw(nb))
 
-lmi_data <- printCoefmat(data.frame(resI[oid,], row.names=rownames(spatialCoords(spe_wt_f))[oid]),
+nb_k6 <- knn2nb(knearneigh(spatialCoords(spe_wt_f), k=6))
+resI_k6 <- localmoran(umi, nb2listw(nb_k6))
+nb_k18 <- knn2nb(knearneigh(spatialCoords(spe_wt_f), k=18))
+resI_k18 <- localmoran(umi, nb2listw(nb_k18))
+nb_k36 <- knn2nb(knearneigh(spatialCoords(spe_wt_f), k=36))
+resI_k36 <- localmoran(umi, nb2listw(nb_k36))
+
+lmi_data_k6 <- printCoefmat(data.frame(resI_k6[oid,], row.names=rownames(spatialCoords(spe_wt_f))[oid]),
  check.names=FALSE)
-colData(spe_wt_f)$Ii_subsets_mito_percent <- lmi_data$Ii
+lmi_data_k18 <- printCoefmat(data.frame(resI_k18[oid,], row.names=rownames(spatialCoords(spe_wt_f))[oid]),
+ check.names=FALSE)
+lmi_data_k36 <- printCoefmat(data.frame(resI_k36[oid,], row.names=rownames(spatialCoords(spe_wt_f))[oid]),
+ check.names=FALSE)
 
-hist(resI[,5])
-hist(resI[,1])
+colData(spe_wt_f)$Ii_mit_k6 <- lmi_data_k6$Ii
+colData(spe_wt_f)$Ii_mit_k18 <- lmi_data_k18$Ii
+colData(spe_wt_f)$Ii_mit_k36 <- lmi_data_k36$Ii
+
+colData(spe_wt_f)$Ii_mit_k6 <- ifelse(colData(spe_wt_f)$Ii_mit_k6 < 0,0, colData(spe_wt_f)$Ii_mit_k6)
+colData(spe_wt_f)$Ii_mit_k18 <- ifelse(colData(spe_wt_f)$Ii_mit_k18 < 0,0, colData(spe_wt_f)$Ii_mit_k18)
+colData(spe_wt_f)$Ii_mit_k36 <- ifelse(colData(spe_wt_f)$Ii_mit_k36 < 0,0, colData(spe_wt_f)$Ii_mit_k36)
+
+plotSpots(spe_wt_f, annotate = "Ii_mit_k6", pal = c("grey", "navy"),point_size = 1.2)+
+  labs(title = "Mitochondrial Percentages with High AutoCorr (K = 6)")
+plotSpots(spe_wt_f, annotate = "Ii_mit_k18", pal = c("grey", "navy"),point_size = 1.2)+
+  labs(title = "Mitochondrial Percentages with High AutoCorr (K = 18)")
+plotSpots(spe_wt_f, annotate = "Ii_mit_k36", pal = c("grey", "navy"),point_size = 1.2)+
+  labs(title = "Mitochondrial Percentages with High AutoCorr (K = 36)")
 ```
 
-plot
+Nonspatial Clustering
 ```{r}
-plotSpots(spe_wt_f, annotate = "Ii_sum",
-          palette = c("grey", "navy"))
-plotSpots(spe_wt_f, annotate = "Ii_detected",
-          palette = c("grey", "navy"))
-plotSpots(spe_wt_f, annotate = "Ii_subsets_mito_percent",
-          palette = c("grey", "navy"))
+spe_2 <- logNormCounts(spe_wt_f)
+
+dec <- modelGeneVar(spe_2)
+top_hvgs <- getTopHVGs(dec, prop = 0.1)
+
+# compute PCA
+set.seed(123)
+spe_2 <- runPCA(spe_2, subset_row = top_hvgs)
+# compute UMAP on top 50 PCs
+set.seed(123)
+spe_2 <- runUMAP(spe_2, dimred = "PCA")
+# update column names
+colnames(reducedDim(spe_2, "UMAP")) <- paste0("UMAP", 1:2)
+
+# graph-based clustering
+set.seed(123)
+k <- 50
+g <- buildSNNGraph(spe_2, k = k, use.dimred = "PCA")
+g_walk <- igraph::cluster_walktrap(g)
+clus <- g_walk$membership
+table(clus)
+
+# store cluster labels in column 'label' in colData
+colLabels(spe_2) <- factor(clus)
+
+# plot clusters in spatial x-y coordinates
+plotSpots(spe_2, annotate = "label", 
+          pal = "libd_layer_colors",point_size = 1.2)
+
+# plot clusters in PCA reduced dimensions
+plotDimRed(spe_2, plot_type = "PCA", 
+           annotate = "label", pal = "libd_layer_colors")
+
+# plot clusters in UMAP reduced dimensions
+plotDimRed(spe_2, plot_type = "UMAP", 
+           annotate = "label", pal = "libd_layer_colors")
+
+#Local Moran's I through Number of Detected Features
+umi <- colData(spe_wt_f)$detected
+id <- rownames(spatialCoords(spe_wt_f))
+oid <- order(id)
+
+nb_k6 <- knn2nb(knearneigh(spatialCoords(spe_wt_f), k=6))
+resI_k6 <- localmoran(umi, nb2listw(nb_k6))
+
+lmi_data <- printCoefmat(data.frame(resI_k6[oid,], row.names=rownames(spatialCoords(spe_2))[oid]),
+ check.names=FALSE)
+colData(spe_2)$Ii_detected <- lmi_data$Ii
+plotSpots(spe_2, annotate = "Ii_detected",
+          pal = c("grey", "navy"), point_size = 1.2) + 
+labs(title = "K = 6")
 ```
 
+
+Filtering for high autocorrlation (Ii > 0.5)
+```{r}
+spe_wt_filter <- spe_2[,colData(spe_2)$Ii_detected >0.5]
+plotSpots(spe_wt_filter, annotate = "label", 
+          pal = "libd_layer_colors",point_size = 1.2) + 
+labs(title = "Detected Features with High AutoCorr (Li > 0.5 with K = 6)")
+
+#Analzying the proportion of high Auto Corr with the clusters
+total_corr <- length(colData(spe_wt_filter)$Ii_detected)
+
+hc_c1 <- sum(colData(spe_wt_filter)$label == 1)
+p_c1 <- hc_c1/total_corr*100
+
+hc_c2 <- sum(colData(spe_wt_filter)$label == 2)
+p_c2 <- hc_c2/total_corr*100
+
+hc_c3 <- sum(colData(spe_wt_filter)$label == 3)
+p_c3 <- hc_c3/total_corr*100
+
+hc_c4 <- sum(colData(spe_wt_filter)$label == 4)
+p_c4 <- hc_c4/total_corr*100
+
+hc_c5 <- sum(colData(spe_wt_filter)$label == 5)
+p_c5 <- hc_c5/total_corr*100
+
+hc_c6 <- sum(colData(spe_wt_filter)$label == 6)
+p_c6 <- hc_c6/total_corr*100
+
+hc_c7 <- sum(colData(spe_wt_filter)$label == 7)
+p_c7 <- hc_c7/total_corr*100
+
+hist(as.numeric(colData(spe_wt_filter)$label), xlab = "Cluster Type", main = paste("Cluster Distribution (Li > 0.5)"), right = FALSE, breaks = c(1,2,3,4,5,6,7))
+```
+
+
+Filtering for high autocorrlation (Ii > 1.5)
+```{r}
+spe_wt_filter <- spe_2[,colData(spe_2)$Ii_detected >1.5]
+plotSpots(spe_wt_filter, annotate = "label", 
+          pal = "libd_layer_colors", point_size = 1.2) + 
+labs(title = "Detected Features with High AutoCorr (Li > 1.5 with K = 6)")
+
+#Analzying the proportion of high Auto Corr with the clusters
+total_corr <- length(colData(spe_wt_filter)$Ii_detected)
+
+hc_c1 <- sum(colData(spe_wt_filter)$label == 1)
+p_c1 <- hc_c1/total_corr*100
+
+hc_c2 <- sum(colData(spe_wt_filter)$label == 2)
+p_c2 <- hc_c2/total_corr*100
+
+hc_c3 <- sum(colData(spe_wt_filter)$label == 3)
+p_c3 <- hc_c3/total_corr*100
+
+hc_c4 <- sum(colData(spe_wt_filter)$label == 4)
+p_c4 <- hc_c4/total_corr*100
+
+hc_c5 <- sum(colData(spe_wt_filter)$label == 5)
+p_c5 <- hc_c5/total_corr*100
+
+hc_c6 <- sum(colData(spe_wt_filter)$label == 6)
+p_c6 <- hc_c6/total_corr*100
+
+hc_c7 <- sum(colData(spe_wt_filter)$label == 7)
+p_c7 <- hc_c7/total_corr*100
+
+hist(as.numeric(colData(spe_wt_filter)$label), xlab = "Cluster Type", main = paste("Cluster Distribution (Li > 1.5)"), right = FALSE, breaks = c(1,2,3,4,5,6,7))
+```
+
+Filtering for high autocorrlation (Ii > 2.5)
+```{r}
+spe_wt_filter <- spe_2[,colData(spe_2)$Ii_detected >2.5]
+plotSpots(spe_wt_filter,  annotate = "label", 
+          pal = "libd_layer_colors", point_size = 1.2) + 
+labs(title = "Detected Features with High AutoCorr (Li > 2.5 with K = 6)")
+
+#Analzying the proportion of high Auto Corr with the clusters
+total_corr <- length(colData(spe_wt_filter)$Ii_detected)
+
+hc_c1 <- sum(colData(spe_wt_filter)$label == 1)
+p_c1 <- hc_c1/total_corr*100
+
+hc_c2 <- sum(colData(spe_wt_filter)$label == 2)
+p_c2 <- hc_c2/total_corr*100
+
+hc_c3 <- sum(colData(spe_wt_filter)$label == 3)
+p_c3 <- hc_c3/total_corr*100
+
+hc_c4 <- sum(colData(spe_wt_filter)$label == 4)
+p_c4 <- hc_c4/total_corr*100
+
+hc_c5 <- sum(colData(spe_wt_filter)$label == 5)
+p_c5 <- hc_c5/total_corr*100
+
+hc_c6 <- sum(colData(spe_wt_filter)$label == 6)
+p_c6 <- hc_c6/total_corr*100
+
+hc_c7 <- sum(colData(spe_wt_filter)$label == 7)
+p_c7 <- hc_c7/total_corr*100
+
+hist(as.numeric(colData(spe_wt_filter)$label), xlab = "Cluster Type", main = paste("Cluster Distribution (Li > 2.5)"), right = FALSE, breaks = c(1,2,3,4,5,6,7))
+```
+
+Filtering for high autocorrlation (Ii > 3.5)
+```{r}
+spe_wt_filter <- spe_2[,colData(spe_2)$Ii_detected >3.5]
+plotSpots(spe_wt_filter,  annotate = "label", 
+          pal = "libd_layer_colors", point_size = 1.2) + 
+labs(title = "Detected Features with High AutoCorr (Li > 3.5 with K = 6)")
+
+#Analzying the proportion of high Auto Corr with the clusters
+total_corr <- length(colData(spe_wt_filter)$Ii_detected)
+
+hc_c1 <- sum(colData(spe_wt_filter)$label == 1)
+p_c1 <- hc_c1/total_corr*100
+
+hc_c2 <- sum(colData(spe_wt_filter)$label == 2)
+p_c2 <- hc_c2/total_corr*100
+
+hc_c3 <- sum(colData(spe_wt_filter)$label == 3)
+p_c3 <- hc_c3/total_corr*100
+
+hc_c4 <- sum(colData(spe_wt_filter)$label == 4)
+p_c4 <- hc_c4/total_corr*100
+
+hc_c5 <- sum(colData(spe_wt_filter)$label == 5)
+p_c5 <- hc_c5/total_corr*100
+
+hc_c6 <- sum(colData(spe_wt_filter)$label == 6)
+p_c6 <- hc_c6/total_corr*100
+
+hc_c7 <- sum(colData(spe_wt_filter)$label == 7)
+p_c7 <- hc_c7/total_corr*100
+
+hist(as.numeric(colData(spe_wt_filter)$label), xlab = "Cluster Type", main = paste("Cluster Distribution (Li > 3.5)"), right = FALSE, breaks = c(1,2,3,4,5,6,7))
+```
+
+Filtering for high autocorrlation (Ii > 4.5)
+```{r}
+spe_wt_filter <- spe_2[,colData(spe_2)$Ii_detected >4.5]
+plotSpots(spe_wt_filter,  annotate = "label", 
+          pal = "libd_layer_colors", point_size = 1.2) + 
+labs(title = "Detected Features with High AutoCorr (Li > 4.5 with K = 6)")
+
+#Analzying the proportion of high Auto Corr with the clusters
+total_corr <- length(colData(spe_wt_filter)$Ii_detected)
+
+hc_c1 <- sum(colData(spe_wt_filter)$label == 1)
+p_c1 <- hc_c1/total_corr*100
+
+hc_c2 <- sum(colData(spe_wt_filter)$label == 2)
+p_c2 <- hc_c2/total_corr*100
+
+hc_c3 <- sum(colData(spe_wt_filter)$label == 3)
+p_c3 <- hc_c3/total_corr*100
+
+hc_c4 <- sum(colData(spe_wt_filter)$label == 4)
+p_c4 <- hc_c4/total_corr*100
+
+hc_c5 <- sum(colData(spe_wt_filter)$label == 5)
+p_c5 <- hc_c5/total_corr*100
+
+hc_c6 <- sum(colData(spe_wt_filter)$label == 6)
+p_c6 <- hc_c6/total_corr*100
+
+hc_c7 <- sum(colData(spe_wt_filter)$label == 7)
+p_c7 <- hc_c7/total_corr*100
+
+hist(as.numeric(colData(spe_wt_filter)$label), xlab = "Cluster Type", main = paste("Cluster Distribution (Li > 4.5)"), right = FALSE, breaks = c(1,2,3,4,5,6,7))
+```
+
+Filtering for high autocorrlation (Ii > 5.5)
+```{r}
+spe_wt_filter <- spe_2[,colData(spe_2)$Ii_detected >5.5]
+plotSpots(spe_wt_filter,  annotate = "label", 
+          pal = "libd_layer_colors", point_size = 1.2) + 
+labs(title = "Detected Features with High AutoCorr (Li > 5.5 with K = 6)")
+
+#Analzying the proportion of high Auto Corr with the clusters
+total_corr <- length(colData(spe_wt_filter)$Ii_detected)
+
+hc_c1 <- sum(colData(spe_wt_filter)$label == 1)
+p_c1 <- hc_c1/total_corr*100
+
+hc_c2 <- sum(colData(spe_wt_filter)$label == 2)
+p_c2 <- hc_c2/total_corr*100
+
+hc_c3 <- sum(colData(spe_wt_filter)$label == 3)
+p_c3 <- hc_c3/total_corr*100
+
+hc_c4 <- sum(colData(spe_wt_filter)$label == 4)
+p_c4 <- hc_c4/total_corr*100
+
+hc_c5 <- sum(colData(spe_wt_filter)$label == 5)
+p_c5 <- hc_c5/total_corr*100
+
+hc_c6 <- sum(colData(spe_wt_filter)$label == 6)
+p_c6 <- hc_c6/total_corr*100
+
+hc_c7 <- sum(colData(spe_wt_filter)$label == 7)
+p_c7 <- hc_c7/total_corr*100
+
+hist(as.numeric(colData(spe_wt_filter)$label), xlab = "Cluster Type", main = paste("Cluster Distribution (Li > 5.5)"), right = FALSE, breaks = c(1,2,3,4,5,6,7))
+```
+
+Filtering for high autocorrlation (Ii > 5.5)
+```{r}
+spe_wt_filter <- spe_2[,colData(spe_2)$Ii_detected >6.5]
+plotSpots(spe_wt_filter,  annotate = "label", 
+          pal = "libd_layer_colors", point_size = 1.2) + 
+labs(title = "Detected Features with High AutoCorr (Li > 6.5 with K = 6)")
+
+#Analzying the proportion of high Auto Corr with the clusters
+total_corr <- length(colData(spe_wt_filter)$Ii_detected)
+
+hc_c1 <- sum(colData(spe_wt_filter)$label == 1)
+p_c1 <- hc_c1/total_corr*100
+
+hc_c2 <- sum(colData(spe_wt_filter)$label == 2)
+p_c2 <- hc_c2/total_corr*100
+
+hc_c3 <- sum(colData(spe_wt_filter)$label == 3)
+p_c3 <- hc_c3/total_corr*100
+
+hc_c4 <- sum(colData(spe_wt_filter)$label == 4)
+p_c4 <- hc_c4/total_corr*100
+
+hc_c5 <- sum(colData(spe_wt_filter)$label == 5)
+p_c5 <- hc_c5/total_corr*100
+
+hc_c6 <- sum(colData(spe_wt_filter)$label == 6)
+p_c6 <- hc_c6/total_corr*100
+
+hc_c7 <- sum(colData(spe_wt_filter)$label == 7)
+p_c7 <- hc_c7/total_corr*100
+
+hist(as.numeric(colData(spe_wt_filter)$label), xlab = "Cluster Type", main = paste("Cluster Distribution (Li > 6.5)"), right = FALSE, breaks = c(1,2,3,4,5,6,7))
+```
