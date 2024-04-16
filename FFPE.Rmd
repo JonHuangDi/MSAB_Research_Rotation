@@ -19,6 +19,7 @@ library(dplyr)
 library(ggspavis)
 library(spdep)
 library(scater)
+library(pheatmap)
 ```
 
 data setup
@@ -118,7 +119,7 @@ plotSpots(spe_FFPE_f, annotate = "Ii_detected_k36", pal = c("grey", "navy"),poin
 ```
 
 
-non-spatial clustering 
+non-spatial clustering ()
 ```{r}
 spe_2 <- logNormCounts(spe_FFPE_f)
 
@@ -176,65 +177,65 @@ labs(title = "K = 18")
 
 Filtering for high autocorrlation (Ii > 0.5)
 ```{r}
-spe_FFPE_filter <- spe_2[,colData(spe_2)$Ii_sum >0.5]
-plotSpots(spe_FFPE_filter, annotate = "label", 
+spe_FFPE_filter_0 <- spe_2[,colData(spe_2)$Ii_sum >0.5]
+plotSpots(spe_FFPE_filter_0, annotate = "label", 
           pal = "libd_layer_colors",point_size = 1) + 
 labs(title = "Sum of UMI with High AutoCorr (Li > 0.5 with K = 18)")
 
 #Analzying the proportion of high Auto Corr with the clusters
-total_corr <- length(colData(spe_FFPE_filter)$Ii_sum)
+total_corr <- length(colData(spe_FFPE_filter_0)$Ii_sum)
 
-hc_c1 <- sum(colData(spe_FFPE_filter)$label == 1)
+hc_c1 <- sum(colData(spe_FFPE_filter_0)$label == 1)
 p_c1 <- hc_c1/total_corr*100
 
-hc_c2 <- sum(colData(spe_FFPE_filter)$label == 2)
+hc_c2 <- sum(colData(spe_FFPE_filter_0)$label == 2)
 p_c2 <- hc_c2/total_corr*100
 
-hc_c3 <- sum(colData(spe_FFPE_filter)$label == 3)
+hc_c3 <- sum(colData(spe_FFPE_filter_0)$label == 3)
 p_c3 <- hc_c3/total_corr*100
 
-hc_c4 <- sum(colData(spe_FFPE_filter)$label == 4)
+hc_c4 <- sum(colData(spe_FFPE_filter_0)$label == 4)
 p_c4 <- hc_c4/total_corr*100
 
-hc_c5 <- sum(colData(spe_FFPE_filter)$label == 5)
+hc_c5 <- sum(colData(spe_FFPE_filter_0)$label == 5)
 p_c5 <- hc_c5/total_corr*100
 
-hc_c6 <- sum(colData(spe_FFPE_filter)$label == 6)
+hc_c6 <- sum(colData(spe_FFPE_filter_0)$label == 6)
 p_c6 <- hc_c6/total_corr*100
 
-hist(as.numeric(colData(spe_FFPE_filter)$label), xlab = "Cluster Type", main = paste("Cluster Distribution (Li > 0.5)"), right = FALSE, breaks = c(1,2,3,4,5,6))
+hist(as.numeric(colData(spe_FFPE_filter_0)$label), xlab = "Cluster Type", main = paste("Cluster Distribution (Li > 0.5)"), right = FALSE, breaks = c(1,2,3,4,5,6))
 ```
 
 
 Filtering for high autocorrlation (Ii > 1.5)
 ```{r}
-spe_FFPE_filter <- spe_2[,colData(spe_2)$Ii_sum >1.5]
-plotSpots(spe_FFPE_filter, annotate = "label", 
+spe_FFPE_filter_1 <- spe_2[,colData(spe_2)$Ii_sum >1.5]
+plotSpots(spe_FFPE_filter_1, annotate = "label", 
           pal = "libd_layer_colors", point_size = 1) + 
 labs(title = "Sum of UMI with High AutoCorr (Li > 1.5 with K = 18)")
 
 #Analzying the proportion of high Auto Corr with the clusters
-total_corr <- length(colData(spe_FFPE_filter)$Ii_sum)
+total_corr <- length(colData(spe_FFPE_filter_1)$Ii_sum)
 
-hc_c1 <- sum(colData(spe_FFPE_filter)$label == 1)
+hc_c1 <- sum(colData(spe_FFPE_filter_1)$label == 1)
 p_c1 <- hc_c1/total_corr*100
 
-hc_c2 <- sum(colData(spe_FFPE_filter)$label == 2)
+hc_c2 <- sum(colData(spe_FFPE_filter_1)$label == 2)
 p_c2 <- hc_c2/total_corr*100
 
-hc_c3 <- sum(colData(spe_FFPE_filter)$label == 3)
+hc_c3 <- sum(colData(spe_FFPE_filter_1)$label == 3)
 p_c3 <- hc_c3/total_corr*100
 
-hc_c4 <- sum(colData(spe_FFPE_filter)$label == 4)
+hc_c4 <- sum(colData(spe_FFPE_filter_1)$label == 4)
 p_c4 <- hc_c4/total_corr*100
 
-hc_c5 <- sum(colData(spe_FFPE_filter)$label == 5)
+hc_c5 <- sum(colData(spe_FFPE_filter_1)$label == 5)
 p_c5 <- hc_c5/total_corr*100
 
-hc_c6 <- sum(colData(spe_FFPE_filter)$label == 6)
+hc_c6 <- sum(colData(spe_FFPE_filter_1)$label == 6)
 p_c6 <- hc_c6/total_corr*100
 
-hist(as.numeric(colData(spe_FFPE_filter)$label), xlab = "Cluster Type", main = paste("Cluster Distribution (Li > 1.5)"), right = FALSE, breaks = c(1,2,3,4,5,6))
+hist(as.numeric(colData(spe_FFPE_filter_1)$label), xlab = "Cluster Type", main = paste("Cluster Distribution (Li > 1.5)"), right = FALSE, breaks = c(1,2,3,4,5,6))
 ```
 
 Filtering for high autocorrlation (Ii > 2.5)
@@ -270,33 +271,33 @@ hist(as.numeric(colData(spe_FFPE_filter)$label), xlab = "Cluster Type", main = p
 
 Filtering for high autocorrlation (Ii > 3.5)
 ```{r}
-spe_FFPE_filter <- spe_2[,colData(spe_2)$Ii_sum >3.5]
-plotSpots(spe_FFPE_filter,  annotate = "label", 
+spe_FFPE_filter_3 <- spe_2[,colData(spe_2)$Ii_sum >3.5]
+plotSpots(spe_FFPE_filter_3,  annotate = "label", 
           pal = "libd_layer_colors", point_size = 1) + 
 labs(title = "Sum of UMI with High AutoCorr (Li > 3.5 with K = 18)")
 
 #Analzying the proportion of high Auto Corr with the clusters
-total_corr <- length(colData(spe_FFPE_filter)$Ii_sum)
+total_corr <- length(colData(spe_FFPE_filter_3)$Ii_sum)
 
-hc_c1 <- sum(colData(spe_FFPE_filter)$label == 1)
+hc_c1 <- sum(colData(spe_FFPE_filter_3)$label == 1)
 p_c1 <- hc_c1/total_corr*100
 
-hc_c2 <- sum(colData(spe_FFPE_filter)$label == 2)
+hc_c2 <- sum(colData(spe_FFPE_filter_3)$label == 2)
 p_c2 <- hc_c2/total_corr*100
 
-hc_c3 <- sum(colData(spe_FFPE_filter)$label == 3)
+hc_c3 <- sum(colData(spe_FFPE_filter_3)$label == 3)
 p_c3 <- hc_c3/total_corr*100
 
-hc_c4 <- sum(colData(spe_FFPE_filter)$label == 4)
+hc_c4 <- sum(colData(spe_FFPE_filter_3)$label == 4)
 p_c4 <- hc_c4/total_corr*100
 
-hc_c5 <- sum(colData(spe_FFPE_filter)$label == 5)
+hc_c5 <- sum(colData(spe_FFPE_filter_3)$label == 5)
 p_c5 <- hc_c5/total_corr*100
 
-hc_c6 <- sum(colData(spe_FFPE_filter)$label == 6)
+hc_c6 <- sum(colData(spe_FFPE_filter_3)$label == 6)
 p_c6 <- hc_c6/total_corr*100
 
-hist(as.numeric(colData(spe_FFPE_filter)$label), xlab = "Cluster Type", main = paste("Cluster Distribution (Li > 3.5)"), right = FALSE, breaks = c(1,2,3,4,5,6))
+hist(as.numeric(colData(spe_FFPE_filter_3)$label), xlab = "Cluster Type", main = paste("Cluster Distribution (Li > 3.5)"), right = FALSE, breaks = c(1,2,3,4,5,6))
 ```
 
 Filtering for high autocorrlation (Ii > 4.5)
@@ -328,4 +329,79 @@ hc_c6 <- sum(colData(spe_FFPE_filter)$label == 6)
 p_c6 <- hc_c6/total_corr*100
 
 hist(as.numeric(colData(spe_FFPE_filter)$label), xlab = "Cluster Type", main = paste("Cluster Distribution (Li > 4.5)"), right = FALSE, breaks = c(1,2,3,4,5,6))
+```
+
+
+Differential expression testing (without high-autocorrelation)
+```{r}
+# set gene names as row names for easier plotting
+rownames(spe_2) <- rowData(spe_2)$symbol
+
+# test for marker genes
+markers <- findMarkers(spe_2, test = "binom", direction = "up")
+# returns a list with one DataFrame per cluster
+markers
+
+# plot log-fold changes for one cluster over all other clusters
+# selecting cluster 1
+interesting <- markers[[1]]
+best_set <- interesting[interesting$Top <= 5, ]
+logFCs <- getMarkerEffects(best_set)
+
+pheatmap(logFCs, breaks = seq(-5, 5, length.out = 101))
+
+# plot log-transformed normalized expression of top genes for one cluster
+top_genes <- head(rownames(interesting))
+
+plotExpression(spe_2, x = "label", features = top_genes)
+```
+
+
+Differential expression testing (with high-autocorrelation Ii > 0.5)
+```{r}
+# set gene names as row names for easier plotting
+rownames(spe_FFPE_filter_0) <- rowData(spe_FFPE_filter_0)$symbol
+
+# test for marker genes
+markers <- findMarkers(spe_FFPE_filter_0, test = "binom", direction = "up")
+# returns a list with one DataFrame per cluster
+markers
+
+# plot log-fold changes for one cluster over all other clusters
+# selecting cluster 1
+interesting <- markers[[1]]
+best_set <- interesting[interesting$Top <= 5, ]
+logFCs <- getMarkerEffects(best_set)
+
+pheatmap(logFCs, breaks = seq(-5, 5, length.out = 101))
+
+# plot log-transformed normalized expression of top genes for one cluster
+top_genes <- head(rownames(interesting))
+
+plotExpression(spe_2, x = "label", features = top_genes)
+```
+
+
+Differential expression testing (with high-autocorrelation Ii > 1.5)
+```{r}
+# set gene names as row names for easier plotting
+rownames(spe_FFPE_filter_1) <- rowData(spe_FFPE_filter_1)$symbol
+
+# test for marker genes
+markers <- findMarkers(spe_FFPE_filter_1, test = "binom", direction = "up")
+# returns a list with one DataFrame per cluster
+markers
+
+# plot log-fold changes for one cluster over all other clusters
+# selecting cluster 1
+interesting <- markers[[1]]
+best_set <- interesting[interesting$Top <= 5, ]
+logFCs <- getMarkerEffects(best_set)
+
+pheatmap(logFCs, breaks = seq(-5, 5, length.out = 101))
+
+# plot log-transformed normalized expression of top genes for one cluster
+top_genes <- head(rownames(interesting))
+
+plotExpression(spe_2, x = "label", features = top_genes)
 ```
