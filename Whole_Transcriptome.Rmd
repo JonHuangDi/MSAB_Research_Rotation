@@ -19,6 +19,7 @@ library(dplyr)
 library(ggspavis)
 library(spdep)
 library(scater)
+library(pheatmap)
 ```
 
 data setup
@@ -26,6 +27,9 @@ data setup
 dir <- file.path("/Users/jonathanhuang/Desktop/Boston_University/Research_Rotation/ST_Project/MSAB_Research_Rotation/Human_Breast_Cancer/Whole_Transcriptome")
 samples <- file.path(dir, "outs")
 wt<- read10xVisium(samples = samples)
+spe_wt <- wt[, colData(wt)$in_tissue == 1]
+is_mito <- grepl("(^MT-)|(^mt-)", rowData(spe_wt)$symbol)
+spe_wt_f <- addPerCellQC(spe_wt, subsets = list(mito = is_mito))
 ```
 
 Overview + Quality Control
@@ -248,7 +252,6 @@ p_c7 <- hc_c7/total_corr*100
 hist(as.numeric(colData(spe_wt_filter)$label), xlab = "Cluster Type", main = paste("Cluster Distribution (Li > 0.5)"), right = FALSE, breaks = c(1,2,3,4,5,6,7))
 ```
 
-
 Filtering for high autocorrlation (Ii > 1.5)
 ```{r}
 spe_wt_filter <- spe_2[,colData(spe_2)$Ii_detected >1.5]
@@ -353,36 +356,36 @@ hist(as.numeric(colData(spe_wt_filter)$label), xlab = "Cluster Type", main = pas
 
 Filtering for high autocorrlation (Ii > 4.5)
 ```{r}
-spe_wt_filter <- spe_2[,colData(spe_2)$Ii_detected >4.5]
-plotSpots(spe_wt_filter,  annotate = "label", 
+spe_wt_filter_4 <- spe_2[,colData(spe_2)$Ii_detected >4.5]
+plotSpots(spe_wt_filter_4,  annotate = "label", 
           pal = "libd_layer_colors", point_size = 1.2) + 
 labs(title = "Detected Features with High AutoCorr (Li > 4.5 with K = 6)")
 
 #Analzying the proportion of high Auto Corr with the clusters
-total_corr <- length(colData(spe_wt_filter)$Ii_detected)
+total_corr <- length(colData(spe_wt_filter_4)$Ii_detected)
 
-hc_c1 <- sum(colData(spe_wt_filter)$label == 1)
+hc_c1 <- sum(colData(spe_wt_filter_4)$label == 1)
 p_c1 <- hc_c1/total_corr*100
 
-hc_c2 <- sum(colData(spe_wt_filter)$label == 2)
+hc_c2 <- sum(colData(spe_wt_filter_4)$label == 2)
 p_c2 <- hc_c2/total_corr*100
 
-hc_c3 <- sum(colData(spe_wt_filter)$label == 3)
+hc_c3 <- sum(colData(spe_wt_filter_4)$label == 3)
 p_c3 <- hc_c3/total_corr*100
 
-hc_c4 <- sum(colData(spe_wt_filter)$label == 4)
+hc_c4 <- sum(colData(spe_wt_filter_4)$label == 4)
 p_c4 <- hc_c4/total_corr*100
 
-hc_c5 <- sum(colData(spe_wt_filter)$label == 5)
+hc_c5 <- sum(colData(spe_wt_filter_4)$label == 5)
 p_c5 <- hc_c5/total_corr*100
 
-hc_c6 <- sum(colData(spe_wt_filter)$label == 6)
+hc_c6 <- sum(colData(spe_wt_filter_4)$label == 6)
 p_c6 <- hc_c6/total_corr*100
 
-hc_c7 <- sum(colData(spe_wt_filter)$label == 7)
+hc_c7 <- sum(colData(spe_wt_filter_4)$label == 7)
 p_c7 <- hc_c7/total_corr*100
 
-hist(as.numeric(colData(spe_wt_filter)$label), xlab = "Cluster Type", main = paste("Cluster Distribution (Li > 4.5)"), right = FALSE, breaks = c(1,2,3,4,5,6,7))
+hist(as.numeric(colData(spe_wt_filter_4)$label), xlab = "Cluster Type", main = paste("Cluster Distribution (Li > 4.5)"), right = FALSE, breaks = c(1,2,3,4,5,6,7))
 ```
 
 Filtering for high autocorrlation (Ii > 5.5)
@@ -451,4 +454,137 @@ hc_c7 <- sum(colData(spe_wt_filter)$label == 7)
 p_c7 <- hc_c7/total_corr*100
 
 hist(as.numeric(colData(spe_wt_filter)$label), xlab = "Cluster Type", main = paste("Cluster Distribution (Li > 6.5)"), right = FALSE, breaks = c(1,2,3,4,5,6,7))
+```
+
+
+Differential Expression with region of interset
+```{r}
+x <- as.data.frame(spatialCoords(spe_wt_filter_4))
+row <- 8000 #smaller than col
+col <- 20000 #greater than row
+test1_wt <- x[x$pxl_col_in_fullres < col & x$pxl_row_in_fullres < row,]
+
+try1 <- spe_wt_filter_4[,which(row.names(colData(spe_wt_filter_4)) %in% row.names(test1_wt))]
+
+plotSpots(try1, annotate = "label", 
+          pal = "libd_layer_colors", point_size = 10)
+
+test1_wt_v2 <- x[x$pxl_col_in_fullres > col & x$pxl_row_in_fullres < row,]
+try1_v2 <- spe_wt_filter_4[,which(row.names(colData(spe_wt_filter_4)) %in% row.names(test1_wt_v2))]
+plotSpots(try1_v2, annotate = "label", 
+          pal = "libd_layer_colors", point_size = 1)
+
+
+
+row_c3 <- 21000 #smaller than col
+col_c3 <- 20000 #greater than row
+test1_wt_v3 <- x[x$pxl_col_in_fullres > col_c3 & x$pxl_row_in_fullres > row_c3,]
+try1_v3 <- spe_wt_filter_4[,which(row.names(colData(spe_wt_filter_4)) %in% row.names(test1_wt_v3))]
+plotSpots(try1_v3, annotate = "label", 
+          pal = "libd_layer_colors", point_size = 1)
+
+
+spe_2 <- logNormCounts(spe_wt_f)
+
+dec <- modelGeneVar(spe_2)
+top_hvgs <- getTopHVGs(dec, prop = 0.1)
+
+# compute PCA
+set.seed(123)
+spe_2 <- runPCA(spe_2, subset_row = top_hvgs)
+# compute UMAP on top 50 PCs
+set.seed(123)
+spe_2 <- runUMAP(spe_2, dimred = "PCA")
+# update column names
+colnames(reducedDim(spe_2, "UMAP")) <- paste0("UMAP", 1:2)
+
+
+spe_2_test <- spe_2
+colLabels(spe_2_test) <- ifelse(row.names(colData(spe_2)) %in% row.names(test1_wt),1,4)
+colLabels(spe_2_test) <- ifelse(row.names(colData(spe_2)) %in% row.names(test1_wt_v2),2,colLabels(spe_2_test))
+colLabels(spe_2_test) <- ifelse(row.names(colData(spe_2)) %in% row.names(test1_wt_v3),3,colLabels(spe_2_test))
+colLabels(spe_2_test)<-as.factor(colLabels(spe_2_test))
+
+# plot clusters in spatial x-y coordinates
+plotSpots(spe_2_test, annotate = "label", 
+          pal = c("blue","red","green","grey") ,point_size = 1.2) +
+labs(title = "Cluster of Interest (3 regions) vs. Others")
+
+# plot clusters in PCA reduced dimensions
+plotDimRed(spe_2_test, plot_type = "PCA", 
+           annotate = "label", pal = c("blue","red","green","grey"))
+
+# plot clusters in UMAP reduced dimensions
+plotDimRed(spe_2_test, plot_type = "UMAP", 
+           annotate = "label", pal = c("blue","red","green","grey"))
+
+rownames(spe_2_test) <- rowData(spe_2)$symbol
+markers_test <- findMarkers(spe_2_test, test = "binom", direction = "up")
+interesting_test <- markers_test[[1]]
+
+best_set <- interesting_test[interesting_test$Top <= 5, ]
+logFCs <- getMarkerEffects(best_set)
+
+pheatmap(logFCs, breaks = seq(-5, 5, length.out = 101), main = "Cluster of Interest (3 regions) vs. Others (top genes)")
+
+
+markers_test_bot <- findMarkers(spe_2_test, test = "binom", direction = "down")
+interesting_test_bot <- markers_test_bot[[1]]
+
+best_set_bot <- interesting_test_bot[interesting_test_bot$Top <= 5, ]
+logFCs_bot <- getMarkerEffects(best_set_bot)
+
+pheatmap(logFCs_bot, breaks = seq(-5, 5, length.out = 101), main = "Cluster of Interest (3 regions) vs. Others (Bottom genes)")
+```
+
+Region 1 vs others
+```{r}
+colLabels(spe_2_test) <- ifelse(row.names(colData(spe_2)) %in% row.names(test1_wt),1,2)
+rownames(spe_2_test) <- rowData(spe_2)$symbol
+
+markers_c1 <- findMarkers(spe_2_test, test = "binom", direction = "up")
+
+interesting_c1 <- markers_c1[[1]]
+interesting_c1_upper <- interesting_c1[order(-interesting_c1$logFC.2), ]
+sit_c1_top <- as.data.frame(head(interesting_c1_upper,20))
+top_genes_c1 <- head(rownames(interesting_c1_upper),20)
+
+interesting_c1_bottom <- interesting_c1[order(interesting_c1$logFC.2), ]
+sit_c1_bot <- as.data.frame(head(interesting_c1_bottom,20))
+bot_genes_c1 <- head(rownames(interesting_c1_bottom),20)
+```
+
+
+Region 2 vs others
+```{r}
+colLabels(spe_2_test) <- ifelse(row.names(colData(spe_2)) %in% row.names(test1_wt_v2),1,2)
+rownames(spe_2_test) <- rowData(spe_2)$symbol
+
+markers_c2 <- findMarkers(spe_2_test, test = "binom", direction = "up")
+
+interesting_c2 <- markers_c2[[1]]
+interesting_c2_upper <- interesting_c2[order(-interesting_c2$logFC.2), ]
+sit_c2_top <- as.data.frame(head(interesting_c2_upper,20))
+top_genes_c2 <- head(rownames(interesting_c2_upper),20)
+
+interesting_c2_bottom <- interesting_c2[order(interesting_c2$logFC.2), ]
+sit_c2_bot <- as.data.frame(head(interesting_c2_bottom,20))
+bot_genes_c2 <- head(rownames(interesting_c2_bottom),20)
+```
+
+Region 2 vs others
+```{r}
+colLabels(spe_2_test) <- ifelse(row.names(colData(spe_2)) %in% row.names(test1_wt_v3),1,2)
+rownames(spe_2_test) <- rowData(spe_2)$symbol
+
+markers_c3 <- findMarkers(spe_2_test, test = "binom", direction = "up")
+
+interesting_c3 <- markers_c3[[1]]
+interesting_c3_upper <- interesting_c3[order(-interesting_c3$logFC.2), ]
+sit_c3_top <- as.data.frame(head(interesting_c3_upper,20))
+top_genes_c3 <- head(rownames(interesting_c3_upper),20)
+
+interesting_c3_bottom <- interesting_c3[order(interesting_c3$logFC.2), ]
+sit_c3_bot <- as.data.frame(head(interesting_c3_bottom,20))
+bot_genes_c3 <- head(rownames(interesting_c3_bottom),20)
 ```

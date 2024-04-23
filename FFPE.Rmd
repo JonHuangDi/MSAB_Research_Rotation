@@ -27,6 +27,8 @@ data setup
 dir <- file.path("/Users/jonathanhuang/Desktop/Boston_University/Research_Rotation/ST_Project/MSAB_Research_Rotation/Human_Breast_Cancer/FFPE_Files")
 samples <- file.path(dir, "outs")
 FFPE<- read10xVisium(samples = samples)
+spe_FFPE <- FFPE[, colData(FFPE)$in_tissue == 1]
+spe_FFPE_f <- addPerCellQC(spe_FFPE)
 ```
 
 Overview + Quality Control
@@ -119,7 +121,7 @@ plotSpots(spe_FFPE_f, annotate = "Ii_detected_k36", pal = c("grey", "navy"),poin
 ```
 
 
-non-spatial clustering ()
+non-spatial clustering
 ```{r}
 spe_2 <- logNormCounts(spe_FFPE_f)
 
@@ -160,18 +162,39 @@ plotDimRed(spe_2, plot_type = "UMAP",
            annotate = "label", pal = "libd_layer_colors")
 
 #Local Moran's I through Sum of UMI
-umi <- colData(spe_2)$sum
-id <- rownames(spatialCoords(spe_2))
-nb <- knn2nb(knearneigh(spatialCoords(spe_2), k=18))
-oid <- order(id)
-resI <- localmoran(umi, nb2listw(nb))
 
-lmi_data <- printCoefmat(data.frame(resI[oid,], row.names=rownames(spatialCoords(spe_2))[oid]),
- check.names=FALSE)
-colData(spe_2)$Ii_sum <- lmi_data$Ii
-plotSpots(spe_2, annotate = "Ii_sum",
-          pal = c("grey", "navy"), point_size = 1.2) + 
-labs(title = "K = 18")
+
+# umi <- colData(spe_2)$sum
+# id <- rownames(spatialCoords(spe_2))
+# nb <- knn2nb(knearneigh(spatialCoords(spe_2), k=18))
+# oid <- order(id)
+# resI <- localmoran(umi, nb2listw(nb))
+# 
+# lmi_data <- printCoefmat(data.frame(resI[oid,], row.names=rownames(spatialCoords(spe_2))[oid]),
+#  check.names=FALSE)
+# colData(spe_2)$Ii_sum <- lmi_data$Ii
+# plotSpots(spe_2, annotate = "Ii_sum",
+#           pal = c("grey", "navy"), point_size = 1.2) + 
+# labs(title = "K = 18")
+
+
+
+# set gene names as row names for easier plotting
+rownames(spe_2) <- rowData(spe_2)$symbol
+
+# test for marker genes
+markers <- findMarkers(spe_2, test = "binom", direction = "up")
+# returns a list with one DataFrame per cluster
+markers
+
+# plot log-fold changes for one cluster over all other clusters
+# selecting cluster 1
+interesting <- markers[[1]]
+best_set <- interesting[interesting$Top <= 5, ]
+best_set
+logFCs <- getMarkerEffects(best_set)
+logFCs
+pheatmap(logFCs, breaks = seq(-5, 5, length.out = 101))
 ```
 
 
@@ -334,6 +357,7 @@ hist(as.numeric(colData(spe_FFPE_filter)$label), xlab = "Cluster Type", main = p
 
 Differential expression testing (without high-autocorrelation)
 ```{r}
+
 # set gene names as row names for easier plotting
 rownames(spe_2) <- rowData(spe_2)$symbol
 
@@ -404,4 +428,64 @@ pheatmap(logFCs, breaks = seq(-5, 5, length.out = 101))
 top_genes <- head(rownames(interesting))
 
 plotExpression(spe_2, x = "label", features = top_genes)
+```
+
+Differential Expression on Region of interest
+```{r}
+x <- as.data.frame(spatialCoords(spe_FFPE_filter_1))
+row <- 11000 #smaller than col
+col <- 12000 #greater than row
+test1 <- x[x$pxl_col_in_fullres < col & x$pxl_row_in_fullres < row,]
+
+try1 <- spe_FFPE_filter_1[,which(row.names(colData(spe_FFPE_filter_1)) %in% row.names(test1))]
+
+plotSpots(try1, annotate = "label", 
+          pal = "libd_layer_colors", point_size = 10)
+
+
+spe_2 <- logNormCounts(spe_FFPE_f)
+
+dec <- modelGeneVar(spe_2)
+top_hvgs <- getTopHVGs(dec, prop = 0.1)
+
+# compute PCA
+set.seed(123)
+spe_2 <- runPCA(spe_2, subset_row = top_hvgs)
+# compute UMAP on top 50 PCs
+set.seed(123)
+spe_2 <- runUMAP(spe_2, dimred = "PCA")
+# update column names
+colnames(reducedDim(spe_2, "UMAP")) <- paste0("UMAP", 1:2)
+
+spe_2_test <- spe_2
+colLabels(spe_2_test) <- ifelse(row.names(colData(spe_2)) %in% row.names(test1),1,2)
+colLabels(spe_2_test)
+
+# plot clusters in spatial x-y coordinates
+plotSpots(spe_2_test, annotate = "label", 
+          pal = "libd_layer_colors",point_size = 1.2) +
+labs(title = "Cluster of Interest vs. Others")
+
+
+# plot clusters in PCA reduced dimensions
+plotDimRed(spe_2_test, plot_type = "PCA", 
+           annotate = "label", pal = "libd_layer_colors")
+
+# plot clusters in UMAP reduced dimensions
+plotDimRed(spe_2_test, plot_type = "UMAP", 
+           annotate = "label", pal = "libd_layer_colors")
+
+
+rownames(spe_2_test) <- rowData(spe_2)$symbol
+
+markers_test <- findMarkers(spe_2_test, test = "binom", direction = "up")
+
+interesting_test <- markers_test[[1]]
+interest_test_upper <- interesting_test[order(-interesting_test$logFC.2), ]
+sit_top <- as.data.frame(head(interest_test_upper,20))
+top_genes <- head(rownames(interest_test_upper),20)
+
+interest_test_bottom <- interesting_test[order(interesting_test$logFC.2), ]
+sit_bottom <- as.data.frame(head(interest_test_bottom,20))
+bot_genes <- head(rownames(interest_test_bottom),20)
 ```
